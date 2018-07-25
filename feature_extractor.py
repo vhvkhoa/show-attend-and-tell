@@ -31,13 +31,13 @@ class FeatureExtractor(object):
         layer (int): reversed index of the layer that you want to extract the feature from.
     """
     def __init__(self, model_name='resnet101', layer=3):
-        if model_name.lower == 'vgg16':
+        if model_name.lower() == 'vgg16':
             orig_model = models.vgg16(pretrained=True)
-        elif model_name.lower == 'vgg19':
+        elif model_name.lower() == 'vgg19':
             orig_model = models.vgg19(pretrained=True)
-        elif model_name.lower == 'resnet50':
+        elif model_name.lower() == 'resnet50':
             orig_model = models.resnet50(pretrained=True)
-        elif model_name.lower == 'resnet152':
+        elif model_name.lower() == 'resnet152':
             orig_model = models.resnet152(pretrained=True)
         else:
             orig_model = models.resnet101(pretrained=True)
