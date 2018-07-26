@@ -12,7 +12,7 @@
 ## Dependencies:
 
 - Python 2.7
-- tensorflow 1.4 (**Higher versions are currently not able to run this code, we are trying to fix this**)
+- tensorflow 1.4 (*Higher versions are currently not able to be used this code due to errors in beam search, we are trying to fix this*)
 - pytorch
 - torchvision
 - skimage
