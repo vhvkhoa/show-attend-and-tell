@@ -23,9 +23,9 @@
 
 If you want to train or evaluate the models, you need to clone the repo of [pycocoevalcap](https://github.com/tylin/coco-caption), run this line in your $HOME directory containing this repo:
 
-'''
+```ruby
 $ git clone https://github.com/tylin/coco-caption.git
-'''
+```
 
 ### Training:
 
