@@ -1,7 +1,7 @@
 # Show, Attend and Tell 
 <b> This code is based on the code of a github user [yunjey](https://github.com/yunjey/show-attend-and-tell)</b>. It is an attempt to reproduce the performance of the image captioning method proposed in [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention](https://arxiv.org/pdf/1502.03044.pdf).
 
-## Some important modifications I made:
+## Some important modifications we made:
 
 - Changed the image-encoder to Resnet-101 by Pytorch, *you may want to take a look at [prepro.py](prepro.py) and modify line 197 to change the encoder to other CNN models*.
 
@@ -12,7 +12,7 @@
 ## Dependencies:
 
 - Python 2.7
-- tensorflow 1.4 **Higher versions are currently not able to run this code, we are trying to fix this**
+- tensorflow 1.4 (**Higher versions are currently not able to run this code, we are trying to fix this**)
 - pytorch
 - torchvision
 - skimage
