@@ -23,24 +23,32 @@
 
 If you want to train or evaluate the models, you need to clone the repo of [pycocoevalcap](https://github.com/tylin/coco-caption), run this line in your $HOME directory containing this repo:
 
-> git clone https://github.com/tylin/coco-caption.git
+'''
+$ git clone https://github.com/tylin/coco-caption.git
+'''
 
 ### Training:
 
 In order to train the model, you need to download the dataset's images and annotations, run this line to download [MSCOCO](http://cocodataset.org) 2017 version's training, validation sets and 2014 testing set:
 
-> bash download.sh
+```ruby
+$ bash download.sh
+```
 
 After that, preprocess the images and captions and then run training code, you're free to set configuration of the training phrase by modifying [train.py](train.py) file:
 
-> python prepro.py
-> python train.py
+```ruby
+$ python prepro.py
+$ python train.py
+```
 
 Make sure that you have enough space in your drive, it would take about **125GB** after preprocessing.
 
 While training, you can observe the process by tensorboard:
 
-> tensorboard --logdir=log/
+```ruby
+$ tensorboard --logdir=log/
+```
 
 ### Evaluation and Inference:
 
