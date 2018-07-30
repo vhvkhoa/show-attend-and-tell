@@ -136,6 +136,54 @@ class CaptionGenerator(object):
                                             updates_collections=None,
                                             scope=(name+'batch_norm'))
 
+    def cell_setup(self, time, *args):
+        features, features_proj, c, h, emb_captions_in = args
+        emit_output = None
+        next_cell_state = (c, h)
+
+        context, alpha = self._attention_layer(features, features_proj, h, reuse=False)
+        alpha_ta = tf.TensorArray(tf.float32, self.max_len)
+        alpha_ta.write(time, alpha)
+        if self.selector:
+            context, beta = self._selector(context, h, reuse=False)
+
+        next_input = tf.concat( [emb_captions_in[:,time,:], context], 1)
+
+        loss_ta = tf.TensorArray(tf.float32, size=self.T)
+        next_loop_state = (alpha_ta, loss_ta)
+
+        emit_output = tf.zeros(self.cell.output_size)
+        elements_finished = tf.zeros([self.batch_size], dtype=tf.bool)
+
+        return (elements_finished, next_input, next_cell_state, emit_output, next_loop_state)
+
+    def cell_loop(self, time, cell_output, cell_state, loop_state, *args):
+        features, features_proj, c, h, emb_captions_in, captions_out, mask = args
+        emit_output = cell_output
+        next_cell_state = cell_state
+
+        past_alpha_ta, past_loss_ta = loop_state
+        
+        logits = self._decode_lstm(emb_captions_in[:,time,:], h, context, dropout=self.dropout, reuse=tf.AUTO_REUSE)
+
+        loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
+                                    labels=captions_out[:, time],logits=logits)*mask[:, time])
+        next_loss_ta = past_loss_ta.write(time, loss)
+
+        c, h = cell_state
+        context, alpha = self._attention_layer(features, features_proj, h, reuse=False)
+        next_alpha_ta = tf.TensorArray(tf.float32, self.max_len)
+        alpha_ta.write(time, alpha)
+        if self.selector:
+            context, beta = self._selector(context, h, reuse=False)
+
+        next_input = tf.concat( [emb_captions_in[:,time,:], context], 1)
+        next_loop_state = (next_alpha_ta, next_loss_ta)
+
+        elements_finished = (time >= self.T)
+
+        return (elements_finished, next_input, next_cell_state, emit_output, next_loop_state)
+
     def build_model(self):
         features = self.features
         captions = self.captions
@@ -145,31 +193,23 @@ class CaptionGenerator(object):
         captions_out = captions[:, 1:]
         mask = tf.to_float(tf.not_equal(captions_out, self._null))
 
-
         # batch normalize feature vectors
         features = self._batch_norm(features, mode='train', name='conv_features')
 
         c, h = self._get_initial_lstm(features=features)
-        x = self._word_embedding(inputs=captions_in)
+        emb_captions_in = self._word_embedding(inputs=captions_in)
         features_proj = self._project_features(features=features)
 
-        loss = 0.0
-        alpha_list = []
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self.H)
 
-        for t in range(self.T):
-            context, alpha = self._attention_layer(features, features_proj, h, reuse=(t!=0))
-            alpha_list.append(alpha)
+        def loop_fn(self, time, cell_output, cell_state, loop_state):
+            args = [features, features_proj, c, h, emb_captions_in, captions_out, mask]
+            if cell_output is None:
+                return self.cell_setup(time, *args[:-2])
+            else:
+                return self.cell_loop(time, cell_output, cell_state, loop_state, *args)
 
-            if self.selector:
-                context, beta = self._selector(context, h, reuse=(t!=0))
-
-            with tf.variable_scope('lstm', reuse=(t!=0)):
-                _, (c, h) = lstm_cell(inputs=tf.concat( [x[:,t,:], context],1), state=[c, h])
-
-            logits = self._decode_lstm(x[:,t,:], h, context, dropout=self.dropout, reuse=(t!=0))
-
-            loss += tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=captions_out[:, t],logits=logits)*mask[:, t] )
+        emit_ta, final_state, loop_state = tf.nn.raw_rnn(lstm_cell, loop_fn, scope='lstm')
 
         if self.alpha_c > 0:
             alphas = tf.transpose(tf.stack(alpha_list), (1, 0, 2))     # (N, T, L)
@@ -238,27 +278,25 @@ class CaptionGenerator(object):
 
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self.H)
 
-        def tokens_to_inputs_attention_fn(model, symbols, feats, feats_proj, hidden_state, beam_size, out_scope):
-            with tf.variable_scope(out_scope):
-                embed_symbols = model._word_embedding(inputs=tf.reshape(symbols, [-1]), reuse=True)
+        def tokens_to_inputs_attention_fn(model, symbols, feats, feats_proj, hidden_state, beam_size):
+            embed_symbols = model._word_embedding(inputs=tf.reshape(symbols, [-1]), reuse=True)
 
-                context, alpha = self._attention_layer(feats, feats_proj, hidden_state, reuse=True)
+            context, alpha = self._attention_layer(feats, feats_proj, hidden_state, reuse=True)
 
-                if self.selector:
-                    context, beta = self._selector(context, hidden_state, reuse=True)
+            if self.selector:
+                context, beta = self._selector(context, hidden_state, reuse=True)
 
-                next_input = tf.concat([embed_symbols, context], 1)
-                next_input = tf.reshape(next_input, [-1, beam_size, next_input.shape[-1]])
-                return next_input, context, alpha, beta
+            next_input = tf.concat([embed_symbols, context], 1)
+            next_input = tf.reshape(next_input, [-1, beam_size, next_input.shape[-1]])
+            return next_input, context, alpha, beta
 
         def outputs_to_score_attention_fn(model, symbols, outputs, beam_context, beam_size, out_scope):
-            with tf.variable_scope(out_scope):
-                embed_symbols = model._word_embedding(inputs=symbols, reuse=True)
-                outputs = tf.reshape(outputs, [-1, outputs.shape[-1]])
+            embed_symbols = model._word_embedding(inputs=symbols, reuse=True)
+            outputs = tf.reshape(outputs, [-1, outputs.shape[-1]])
 
-                logits = model._decode_lstm(embed_symbols, outputs, beam_context)
-                logits = tf.reshape(logits, [-1, beam_size, logits.shape[-1]])
-                return tf.nn.log_softmax(logits)
+            logits = model._decode_lstm(embed_symbols, outputs, beam_context)
+            logits = tf.reshape(logits, [-1, beam_size, logits.shape[-1]])
+            return tf.nn.log_softmax(logits)
 
         current_scope = tf.get_variable_scope()
 
@@ -266,6 +304,6 @@ class CaptionGenerator(object):
                                                 init_state, init_input, context, alpha, beta,
                                                 tokens_to_inputs_attention_fn, outputs_to_score_attention_fn,
                                                 features=features, features_proj=features_proj,
-                                                max_len=35, output_dense=True, scope='lstm', out_scope=current_scope, model=self)
+                                                max_len=35, output_dense=True, scope='lstm', model=self)
 
         return alphas, betas, sampled_captions

@@ -299,8 +299,7 @@ class BeamSearchHelper(object):
             outputs_to_score_fn=None,
             tokens_to_inputs_fn=None,
             cell_transform='default',
-            scope=None,
-            out_scope=None,
+            scope=None
             ):
  
         self.beam_size = beam_size
@@ -315,7 +314,6 @@ class BeamSearchHelper(object):
         self.initial_alpha = initial_alpha
         self.initial_beta = initial_beta
         self.scope = scope
-        self.out_scope = out_scope
 
         if score_upper_bound is None and outputs_to_score_fn is None:
             self.score_upper_bound = 0.0
@@ -483,7 +481,7 @@ class BeamSearchHelper(object):
         past_symbols = tf.cond(tf.equal(time, 1), 
                                 lambda: tf.fill(dims=[self.batch_size_times_beam_size], value=self.start_token),
                                 lambda: past_beam_symbols[:, -1])
-        logprobs = self.outputs_to_score_fn(self.model, past_symbols, cell_output, past_beam_context, self.beam_size, self.out_scope)
+        logprobs = self.outputs_to_score_fn(self.model, past_symbols, cell_output, past_beam_context, self.beam_size)
 
         try:
             num_classes = int(logprobs.get_shape()[-1])
@@ -525,7 +523,7 @@ class BeamSearchHelper(object):
         )
 
         next_input, context, alpha, beta = self.tokens_to_inputs_fn(self.model, symbols, self.feats, self.feats_proj, cell_output,
-                                                                    self.beam_size, self.out_scope)
+                                                                    self.beam_size)
 
         beam_context = context
         alphas_history = flat_batch_gather(past_beam_alphas, parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
@@ -652,8 +650,7 @@ def beam_decoder(
         features_proj=None,
         cell_transform='default',
         output_dense=False,
-        scope=None,
-        out_scope=None,
+        scope=None
         ):
     """Beam search decoder
 
@@ -739,9 +736,8 @@ def beam_decoder(
             features=features,
             features_proj=features_proj,
             cell_transform=cell_transform,
-            scope=varscope,
-            out_scope=out_scope,
-        )
+            scope=varscope
+            )
 
         if output_dense:
             return helper.decode_dense()
