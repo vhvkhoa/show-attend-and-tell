@@ -64,18 +64,17 @@ class CaptioningSolver(object):
         if not os.path.exists(self.log_path):
             os.makedirs(self.log_path)
 
-    def _read_features(self, data, idx_list):
-        batch_feats = np.array([np.load(os.path.join(data['features_path'], str(idx) + '.npy')) for idx in idx_list])
+    def _read_features(self, data, ids_list):
+        batch_feats = np.array([np.load(os.path.join(data['features_path'], ids + '.npy')) for ids in ids_list])
         return batch_feats
 
     def train(self, beam_size=1):
         # train/val dataset
         # Changed this because I keep less features than captions, see prepro
-        # n_examples = self.data['captions'].shape[0]
         n_examples = self.data['n_examples']
         n_iters_per_epoch = int(np.ceil(float(n_examples)/self.batch_size))
         captions = self.data['captions']
-        image_idxs = self.data['image_idxs']
+        image_ids = self.data['image_ids']
         n_iters_val = int(np.ceil(float(self.val_data['n_examples'])/self.batch_size))
 
         # build graphs for training model and sampling captions
@@ -142,12 +141,12 @@ class CaptioningSolver(object):
             for e in range(self.n_epochs):
                 rand_idxs = np.random.permutation(n_examples)
                 captions = captions[rand_idxs]
-                image_idxs = image_idxs[rand_idxs]
+                image_ids = image_ids[rand_idxs]
 
                 for i in range(n_iters_per_epoch):
                     captions_batch = captions[i*self.batch_size:(i+1)*self.batch_size]
-                    image_idxs_batch = image_idxs[i*self.batch_size:(i+1)*self.batch_size]
-                    features_batch = self._read_features(self.data, image_idxs_batch)
+                    image_ids_batch = image_ids[i*self.batch_size:(i+1)*self.batch_size]
+                    features_batch = self._read_features(self.data, image_ids_batch)
                     feed_dict = {self.model.features: features_batch, self.model.captions: captions_batch}
                     _, l, gs = sess.run([train_op, loss, global_step], feed_dict)
                     curr_loss += l

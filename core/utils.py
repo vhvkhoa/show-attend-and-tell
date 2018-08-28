@@ -13,22 +13,17 @@ def load_coco_data(data_path='./data', split='train'):
 
     data['features_path'] = os.path.join(data_path, 'feats')
     data['n_examples'] = len(os.listdir(data['features_path']))
-    with open(os.path.join(data_path, '%s.keywords.pkl' % (split)), 'rb') as f:
-        data['tags'] = pickle.load(f)
 
     if split == 'train':
         with open(os.path.join(data_path, '%s.captions.pkl' %split), 'rb') as f:
             data['captions'] = pickle.load(f)
-        with open(os.path.join(data_path, '%s.image.idxs.pkl' %split), 'rb') as f:
-            data['image_idxs'] = pickle.load(f)
         with open(os.path.join(data_path, 'word_to_idx.pkl'), 'rb') as f:
             data['word_to_idx'] = pickle.load(f)
 
-    else:
-        anno_path = os.path.join(data_path, '%s.annotations.pkl' % (split))
-        annotations = load_pickle(anno_path)
-        data['image_id'] = annotations['image_id'].as_matrix()
-        data['file_name'] = annotations['file_name'].as_matrix()
+    anno_path = os.path.join(data_path, '%s.annotations.pkl' % (split))
+    annotations = load_pickle(anno_path)
+    data['image_id'] = annotations['image_id'].as_matrix()
+    data['file_name'] = annotations['file_name'].as_matrix()
 
     for k, v in data.iteritems():
         if type(v) == np.ndarray:
@@ -37,6 +32,7 @@ def load_coco_data(data_path='./data', split='train'):
             print k, type(v), len(v)
         else:
             print k, type(v), v
+
     end_t = time.time()
     print "Elapse time: %.2f" %(end_t - start_t)
     return data
