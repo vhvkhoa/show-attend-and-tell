@@ -16,7 +16,7 @@ class CocoDataset(Dataset):
         image = Image.open(image_name).convert('RGB')
         if self.transformation is not None:
             image = self.transformation(image)
-        return int(image_name.split('/')[0].split('.')[0].lstrip('0')), image
+        return int(image_name.split('/')[-1].split('.')[0].lstrip('0')), image
 
     def __len__(self, ):
         return len(self.image_names)

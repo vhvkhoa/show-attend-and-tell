@@ -131,8 +131,8 @@ def main():
     datasets = {}
     for split in splits:
         datasets[split] = _process_caption_data(split,
-                                                caption_file='data/annotations/captions_train2017.json',
-                                                image_dir='image/train/',
+                                                caption_file='data/annotations/captions_%s2017.json' % split,
+                                                image_dir='image/%s/' % split,
                                                 max_length=max_length)
         save_pickle(datasets[split], 'data/%s/%s.annotations.pkl' % (split, split))
 
@@ -158,7 +158,7 @@ def main():
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=4)
 
         for i, (batch_ids, batch_images) in enumerate(tqdm(data_loader)):
-            feats = feature_extractor(batch_image).data.cpu().numpy()
+            feats = feature_extractor(batch_images).data.cpu().numpy()
             feats = feats.reshape(-1, feats.shape[1]*feats.shape[2], feats.shape[-1])
             for j in range(len(feats)):
                 np.save('./data/%s/feats/%d.npy' % (split, batch_ids[j]), feats[j])
