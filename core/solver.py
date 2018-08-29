@@ -65,7 +65,7 @@ class CaptioningSolver(object):
             os.makedirs(self.log_path)
 
     def _read_features(self, data, ids_list):
-        batch_feats = np.array([np.load(os.path.join(data['features_path'], ids + '.npy')) for ids in ids_list])
+        batch_feats = np.array([np.load(os.path.join(data['features_path'], str(ids) + '.npy')) for ids in ids_list])
         return batch_feats
 
     def train(self, beam_size=1):
