@@ -136,7 +136,7 @@ def main():
 
     print 'Finished processing caption data'
 
-    annotations = load_pickle('./data/train/train.annotations.pkl'
+    annotations = load_pickle('./data/train/train.annotations.pkl')
 
     word_to_idx = _build_vocab(annotations=annotations, threshold=word_count_threshold)
     save_pickle(word_to_idx, './data/train/word_to_idx.pkl')
