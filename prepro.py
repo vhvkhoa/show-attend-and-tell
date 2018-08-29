@@ -23,7 +23,7 @@ def _process_caption_data(split, caption_file=None, image_dir=None, max_length=N
             for filename in filenames:
                 file_paths.append(os.path.join(dirpath, filename))
 
-        data = [{'image_id':image_names.split('/')[-1].split('.')[0].lstrip('0'), 'file_name':image_names}
+        data = [{'image_id':int(image_names.split('/')[-1].split('_').split('.')[0].lstrip('0')), 'file_name':image_names}
                     for image_names in file_paths]
         
         caption_data = pd.DataFrame.from_dict(data)
