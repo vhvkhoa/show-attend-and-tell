@@ -119,6 +119,8 @@ def _build_caption_vector(annotations, word_to_idx, max_length=15):
 
 
 def main():
+    # splits to be processed.
+    splits = ['train', 'val', 'test']
     # batch size for extracting feature vectors from vggnet.
     batch_size = 100
     # maximum length of caption(number of word). if caption is longer than max_length, deleted.  
