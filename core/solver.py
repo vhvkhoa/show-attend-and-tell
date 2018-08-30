@@ -74,7 +74,7 @@ class CaptioningSolver(object):
         n_examples = self.data['n_examples']
         n_iters_per_epoch = int(np.ceil(float(n_examples)/self.batch_size))
         captions = self.data['captions']
-        image_ids = self.data['image_ids']
+        image_ids = self.data['image_id']
         n_iters_val = int(np.ceil(float(self.val_data['n_examples'])/self.batch_size))
 
         # build graphs for training model and sampling captions
@@ -158,7 +158,7 @@ class CaptioningSolver(object):
 
                     if (gs+1) % self.print_every == 0:
                         print "\nTrain loss at epoch %d & iteration %d (mini-batch): %.5f" %(e+1, gs+1, l)
-                        ground_truths = captions[image_idxs == image_idxs_batch[0]]
+                        ground_truths = captions[image_ids == image_ids_batch[0]]
                         decoded = decode_captions(ground_truths, self.model.idx_to_word)
                         for j, gt in enumerate(decoded):
                             print "Ground truth %d: %s" %(j+1, gt)
