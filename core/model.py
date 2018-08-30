@@ -202,7 +202,7 @@ class CaptionGenerator(object):
 
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self.H)
 
-        def loop_fn(self, time, cell_output, cell_state, loop_state):
+        def loop_fn(time, cell_output, cell_state, loop_state):
             args = [features, features_proj, c, h, emb_captions_in, captions_out, mask]
             if cell_output is None:
                 return self.cell_setup(time, *args[:-2])
