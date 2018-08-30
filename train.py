@@ -7,7 +7,7 @@ def main():
     # load train dataset
     data = load_coco_data(data_path='./data', split='train')
     word_to_idx = data['word_to_idx']
-    # load val dataset to print out bleu scores every epoch
+    # load val dataset to print out scores every epoch
     val_data = load_coco_data(data_path='./data', split='val')
 
     model = CaptionGenerator(word_to_idx, dim_feature=[196, 1024], dim_embed=512,
@@ -16,9 +16,9 @@ def main():
 
     solver = CaptioningSolver(model, data, val_data, n_epochs=20, batch_size=64, update_rule='momentum',
                                     learning_rate=0.001, print_every=10, eval_every=200, save_every=200, image_path='./image/',
-                                    pretrained_model='model/lstm/model_23600-23600', start_from=23600, model_path='model/lstm/', 
+                                    pretrained_model=None, start_from=None, model_path='model/lstm/', 
                                     test_model='model/lstm/model-10',
-                                    print_bleu=True, log_path='log/log_23600/')
+                                    print_score=True, log_path='log/log_0/')
 
     solver.train(beam_size=3)
 

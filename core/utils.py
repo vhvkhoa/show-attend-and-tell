@@ -5,6 +5,10 @@ import json
 import time
 import heapq
 import os
+import sys
+sys.path.append('../coco-caption')
+from pycocoevalcap.eval import COCOEvalCap
+from pycocotools.coco import COCO
 
 def load_coco_data(data_path='./data', split='train'):
     data_path = os.path.join(data_path, split)
@@ -13,22 +17,17 @@ def load_coco_data(data_path='./data', split='train'):
 
     data['features_path'] = os.path.join(data_path, 'feats')
     data['n_examples'] = len(os.listdir(data['features_path']))
-    with open(os.path.join(data_path, '%s.keywords.pkl' % (split)), 'rb') as f:
-        data['tags'] = pickle.load(f)
 
     if split == 'train':
         with open(os.path.join(data_path, '%s.captions.pkl' %split), 'rb') as f:
             data['captions'] = pickle.load(f)
-        with open(os.path.join(data_path, '%s.image.idxs.pkl' %split), 'rb') as f:
-            data['image_idxs'] = pickle.load(f)
         with open(os.path.join(data_path, 'word_to_idx.pkl'), 'rb') as f:
             data['word_to_idx'] = pickle.load(f)
 
-    else:
-        anno_path = os.path.join(data_path, '%s.annotations.pkl' % (split))
-        annotations = load_pickle(anno_path)
-        data['image_id'] = annotations['image_id'].as_matrix()
-        data['file_name'] = annotations['file_name'].as_matrix()
+    anno_path = os.path.join(data_path, '%s.annotations.pkl' % (split))
+    annotations = load_pickle(anno_path)
+    data['image_id'] = annotations['image_id'].as_matrix()
+    data['file_name'] = annotations['file_name'].as_matrix()
 
     for k, v in data.iteritems():
         if type(v) == np.ndarray:
@@ -37,6 +36,7 @@ def load_coco_data(data_path='./data', split='train'):
             print k, type(v), len(v)
         else:
             print k, type(v), v
+
     end_t = time.time()
     print "Elapse time: %.2f" %(end_t - start_t)
     return data
@@ -101,3 +101,21 @@ def save_json(data, path):
     with open(path, 'w') as f:
         json.dump(data, f)
         print ('Saved %s..' % path)
+
+def evaluate(data_path='./data', split='val', get_scores=False):
+    reference_path = os.path.join(data_path, "annotations/captions_%s2017.json" %(split))
+    candidate_path = os.path.join(data_path, "%s/%s.candidate.captions.json" %(split, split))
+
+    # load caption data
+    ref = COCO(reference_path)
+    hypo = ref.loadRes(candidate_path)
+
+    cocoEval = COCOEvalCap(ref, hypo)
+    cocoEval.evaluate()
+    final_scores = {}
+    for metric, score in cocoEval.eval.items():
+        final_scores[metric] = score
+        print '%s:\t%.3f'%(metric, score)
+
+    if get_scores:
+        return final_scores
