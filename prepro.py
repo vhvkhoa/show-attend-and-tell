@@ -18,6 +18,11 @@ from tqdm import tqdm
 
 def _process_caption_data(split, caption_file=None, image_dir=None, max_length=None):
     if split == 'test' or split == 'val':
+	if split == 'val':
+	    with open(caption_file, 'r') as f:
+	        caption_object = json.load(f)
+		caption_object['type'] = 'caption'
+
         file_paths = []
         for dirpath, dirnames, filenames in os.walk(image_dir):
             for filename in filenames:
