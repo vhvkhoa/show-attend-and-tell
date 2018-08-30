@@ -137,7 +137,7 @@ class CaptionGenerator(object):
                                             scope=(name+'batch_norm'))
 
     def cell_setup(self, time, *args):
-        features, features_proj, c, h, emb_captions_in = args
+        features, features_proj, c, h, output_size, emb_captions_in = args
         emit_output = None
         next_cell_state = (c, h)
 
@@ -152,13 +152,13 @@ class CaptionGenerator(object):
         loss_ta = tf.TensorArray(tf.float32, size=self.T)
         next_loop_state = (alpha_ta, loss_ta)
 
-        emit_output = tf.zeros(self.cell.output_size)
+        emit_output = tf.zeros(output_size)
         elements_finished = tf.zeros([self.batch_size], dtype=tf.bool)
 
         return (elements_finished, next_input, next_cell_state, emit_output, next_loop_state)
 
     def cell_loop(self, time, cell_output, cell_state, loop_state, *args):
-        features, features_proj, c, h, emb_captions_in, captions_out, mask = args
+        features, features_proj, c, h, output_size, emb_captions_in, captions_out, mask = args
         emit_output = cell_output
         next_cell_state = cell_state
 
@@ -203,7 +203,7 @@ class CaptionGenerator(object):
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self.H)
 
         def loop_fn(time, cell_output, cell_state, loop_state):
-            args = [features, features_proj, c, h, emb_captions_in, captions_out, mask]
+            args = [features, features_proj, c, h, lstm_cell.output_size, emb_captions_in, captions_out, mask]
             if cell_output is None:
                 return self.cell_setup(time, *args[:-2])
             else:
