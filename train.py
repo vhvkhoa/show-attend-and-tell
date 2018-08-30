@@ -16,9 +16,9 @@ def main():
 
     solver = CaptioningSolver(model, data, val_data, n_epochs=20, batch_size=64, update_rule='momentum',
                                     learning_rate=0.001, print_every=10, eval_every=200, save_every=200, image_path='./image/',
-                                    pretrained_model='model/lstm/model_23600-23600', start_from=23600, model_path='model/lstm/', 
+                                    pretrained_model=None, start_from=None, model_path='model/lstm/', 
                                     test_model='model/lstm/model-10',
-                                    print_bleu=True, log_path='log/log_23600/')
+                                    print_bleu=True, log_path='log/log_0/')
 
     solver.train(beam_size=3)
 
