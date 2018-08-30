@@ -15,7 +15,7 @@ def main():
                                                  ctx2out=True, alpha_c=1.0, selector=True, dropout=True)
 
     solver = CaptioningSolver(model, data, val_data, n_epochs=20, batch_size=64, update_rule='momentum',
-                                    learning_rate=0.001, print_every=10, eval_every=10, save_every=200, image_path='./image/',
+                                    learning_rate=0.001, print_every=10, eval_every=200, save_every=200, image_path='./image/',
                                     pretrained_model=None, start_from=None, model_path='model/lstm/', 
                                     test_model='model/lstm/model-10',
                                     print_score=True, log_path='log/log_0/')

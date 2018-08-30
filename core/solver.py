@@ -202,7 +202,6 @@ class CaptioningSolver(object):
             - attention_visualization: If True, visualize attention weights with images for each sampled word. (ipthon notebook)
             - save_sampled_captions: If True, save sampled captions to pkl file for computing BLEU scores.
         '''
-	print 'reached here first'
         # build a graph to sample captions
 	if model_sampler_ops:
 	    alphas, betas, sampled_captions = model_sampler_ops
@@ -254,7 +253,6 @@ class CaptioningSolver(object):
         if save_sampled_captions:
             all_sam_cap = np.ndarray((data['n_examples'], 35))
             num_iter = int(np.ceil(float(data['n_examples']) / self.batch_size))
-	    print 'reached here'
             for i in tqdm(range(num_iter)):
                 start = i * self.batch_size
                 end = min((i+1) * self.batch_size, self.val_data['n_examples'])
