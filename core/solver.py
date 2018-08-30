@@ -42,7 +42,7 @@ class CaptioningSolver(object):
         self.batch_size = kwargs.pop('batch_size', 100)
         self.update_rule = kwargs.pop('update_rule', 'adam')
         self.learning_rate = kwargs.pop('learning_rate', 0.01)
-        self.print_bleu = kwargs.pop('print_bleu', False)
+        self.print_score = kwargs.pop('print_score', False)
         self.print_every = kwargs.pop('print_every', 100)
         self.eval_every = kwargs.pop('eval_every', 200)
         self.save_every = kwargs.pop('save_every', 200)
