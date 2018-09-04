@@ -210,7 +210,7 @@ class CaptionGenerator(object):
                 return self.cell_loop(time, cell_output, cell_state, loop_state, *args)
 
         emit_ta, final_state, loop_state = tf.nn.raw_rnn(lstm_cell, loop_fn, scope='lstm')
-        alpha_ta, loss_ta = loop_state
+        _, alpha_ta, loss_ta = loop_state
         loss = tf.reduce_sum(loss_ta.stack())
         alphas = tf.transpose(alpha_ta.stack(), (1, 0, 2)) # (N, T, L)
 
