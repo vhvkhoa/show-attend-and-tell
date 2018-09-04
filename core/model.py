@@ -218,7 +218,7 @@ class CaptionGenerator(object):
             alphas_all = tf.reduce_sum(alphas, 1)      # (N, L)
             alpha_reg = self.alpha_c * tf.reduce_sum((float(self.T)/196 - alphas_all) ** 2)
             loss += alpha_reg
-
+        print tf.trainable_variables()
         return loss / tf.to_float(batch_size)
 
     def build_sampler(self, max_len=20):
