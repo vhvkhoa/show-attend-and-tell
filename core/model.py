@@ -151,7 +151,7 @@ class CaptionGenerator(object):
         next_input = tf.concat( [emb_captions_in[:,time,:], context], 1)
 
         loss_ta = tf.TensorArray(tf.float32, size=self.T)
-        next_loop_state = (alpha_ta, loss_ta)
+        next_loop_state = (context, alpha_ta, loss_ta)
 
         emit_output = tf.zeros(output_size)
         elements_finished = tf.zeros([batch_size], dtype=tf.bool)
@@ -163,9 +163,9 @@ class CaptionGenerator(object):
         emit_output = cell_output
         next_cell_state = cell_state
 
-        past_alpha_ta, past_loss_ta = loop_state
+        past_context, past_alpha_ta, past_loss_ta = loop_state
         
-        logits = self._decode_lstm(emb_captions_in[:,time,:], h, context, dropout=self.dropout, reuse=tf.AUTO_REUSE)
+        logits = self._decode_lstm(emb_captions_in[:,time,:], h, past_context, dropout=self.dropout, reuse=tf.AUTO_REUSE)
 
         loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
                                     labels=captions_out[:, time],logits=logits)*mask[:, time])
@@ -179,7 +179,7 @@ class CaptionGenerator(object):
             context, beta = self._selector(context, h, reuse=False)
 
         next_input = tf.concat( [emb_captions_in[:,time,:], context], 1)
-        next_loop_state = (next_alpha_ta, next_loss_ta)
+        next_loop_state = (context, next_alpha_ta, next_loss_ta)
 
         elements_finished = (time >= self.T)
 
