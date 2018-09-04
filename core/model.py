@@ -166,7 +166,7 @@ class CaptionGenerator(object):
         past_context, past_alpha_ta, past_loss_ta = loop_state
         
         logits = self._decode_lstm(emb_captions_in[:,time,:], h, past_context, dropout=self.dropout, reuse=tf.AUTO_REUSE)
-
+        print logits, captions_out, mask
         loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
                                     labels=captions_out[:, time],logits=logits)*mask[:, time])
         next_loss_ta = past_loss_ta.write(time, loss)
@@ -229,33 +229,35 @@ class CaptionGenerator(object):
         # batch normalize feature vectors
         features = self._batch_norm(features, mode='test', name='conv_features')
 
-        c, h = self._get_initial_lstm(features=features)
-        features_proj = self._project_features(features=features)
-
         sampled_word_list = []
         alpha_list = []
         beta_list = []
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self.H)
 
-        for t in range(max_len):
-            if t == 0:
-                x = self._word_embedding(inputs=tf.fill([tf.shape(features)[0]], self._start))
-            else:
-                x = self._word_embedding(inputs=sampled_word, reuse=True)
+        # This scope fixes things:
+        with tf.variable_scope('lstm'):
+            c, h = self._get_initial_lstm(features=features)
+            features_proj = self._project_features(features=features)
+        
+            for t in range(max_len):
+                if t == 0:
+                    x = self._word_embedding(inputs=tf.fill([tf.shape(features)[0]], self._start))
+                else:
+                    x = self._word_embedding(inputs=sampled_word, reuse=True)
 
-            context, alpha = self._attention_layer(features, features_proj, h, reuse=(t!=0))
-            alpha_list.append(alpha)
+                context, alpha = self._attention_layer(features, features_proj, h, reuse=(t!=0))
+                alpha_list.append(alpha)
 
-            if self.selector:
-                context, beta = self._selector(context, h, reuse=(t!=0))
-                beta_list.append(beta)
+                if self.selector:
+                    context, beta = self._selector(context, h, reuse=(t!=0))
+                    beta_list.append(beta)
 
-            with tf.variable_scope('lstm', reuse=(t!=0)):
-                _, (c, h) = lstm_cell(inputs=tf.concat( [x, context],1), state=[c, h])
+                with tf.variable_scope('lstm', reuse=(t!=0)):
+                    _, (c, h) = lstm_cell(inputs=tf.concat( [x, context],1), state=[c, h])
 
-            logits = self._decode_lstm(x, h, context, reuse=(t!=0))
-            sampled_word = tf.argmax(logits, 1)
-            sampled_word_list.append(sampled_word)
+                logits = self._decode_lstm(x, h, context, reuse=(t!=0))
+                sampled_word = tf.argmax(logits, 1)
+                sampled_word_list.append(sampled_word)
 
         alphas = tf.transpose(tf.stack(alpha_list), (1, 0, 2))     # (N, T, L)
         betas = tf.transpose(tf.squeeze(beta_list), (1, 0))    # (N, T)
@@ -269,6 +271,7 @@ class CaptionGenerator(object):
         features = self._batch_norm(features, mode='test', name='conv_features')
         features_proj = self._project_features(features=features)
 
+        # This scope fixes things:
         with tf.variable_scope('lstm'):
             init_state = self._get_initial_lstm(features=features)
             init_input = self._word_embedding(inputs=tf.fill([tf.shape(features)[0]], self._start))
