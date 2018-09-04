@@ -140,6 +140,7 @@ class CaptionGenerator(object):
         features, features_proj, c, h, output_size, emb_captions_in = args
         emit_output = None
         next_cell_state = (c, h)
+        batch_size = tf.shape(self.features)[0]
 
         context, alpha = self._attention_layer(features, features_proj, h, reuse=False)
         alpha_ta = tf.TensorArray(tf.float32, self.T)
@@ -153,7 +154,7 @@ class CaptionGenerator(object):
         next_loop_state = (alpha_ta, loss_ta)
 
         emit_output = tf.zeros(output_size)
-        elements_finished = tf.zeros([self.batch_size], dtype=tf.bool)
+        elements_finished = tf.zeros([batch_size], dtype=tf.bool)
 
         return (elements_finished, next_input, next_cell_state, emit_output, next_loop_state)
 
