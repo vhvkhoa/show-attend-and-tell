@@ -172,11 +172,11 @@ class CaptionGenerator(object):
         next_loss_ta = past_loss_ta.write(time, loss)
 
         c, h = cell_state
-        context, alpha = self._attention_layer(features, features_proj, h, reuse=False)
+        context, alpha = self._attention_layer(features, features_proj, h, reuse=True)
         next_alpha_ta = tf.TensorArray(tf.float32, self.max_len)
         alpha_ta.write(time, alpha)
         if self.selector:
-            context, beta = self._selector(context, h, reuse=False)
+            context, beta = self._selector(context, h, reuse=True)
 
         next_input = tf.concat( [emb_captions_in[:,time,:], context], 1)
         next_loop_state = (context, next_alpha_ta, next_loss_ta)
