@@ -139,7 +139,7 @@ class CaptionGenerator(object):
     def cell_setup(self, time, *args):
         features, features_proj, c, h, output_size, emb_captions_in = args
         emit_output = None
-        next_cell_state = (c, h)
+        next_cell_state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
         batch_size = tf.shape(self.features)[0]
 
         context, alpha = self._attention_layer(features, features_proj, h, reuse=False)
