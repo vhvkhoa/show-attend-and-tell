@@ -137,7 +137,7 @@ class CaptionGenerator(object):
                                             scope=(name+'batch_norm'))
 
     def cell_setup(self, time, *args):
-        c, h, output_size, features, features_proj, captions_in = args
+        c, h, output_size, features, features_proj, emb_captions_in = args
         next_cell_state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
         batch_size = tf.shape(self.features)[0]
 
@@ -147,7 +147,7 @@ class CaptionGenerator(object):
         if self.selector:
             context, beta = self._selector(context, h, reuse=False)
 
-        next_input = tf.concat( [emb_captions_in[:,time,:], context], 1)
+        next_input = tf.concat([emb_captions_in[:,time,:], context], 1)
 
         loss_ta = tf.TensorArray(tf.float32, size=self.T)
         next_loop_state = (context, alpha_ta, loss_ta)
