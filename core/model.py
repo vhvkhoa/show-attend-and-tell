@@ -294,7 +294,7 @@ class CaptionGenerator(object):
             next_input = tf.reshape(next_input, [-1, beam_size, next_input.shape[-1]])
             return next_input, context, alpha, beta
 
-        def outputs_to_score_attention_fn(model, symbols, outputs, beam_context, beam_size, out_scope):
+        def outputs_to_score_attention_fn(model, symbols, outputs, beam_context, beam_size):
             embed_symbols = model._word_embedding(inputs=symbols, reuse=True)
             outputs = tf.reshape(outputs, [-1, outputs.shape[-1]])
 
