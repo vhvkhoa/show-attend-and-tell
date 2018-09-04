@@ -141,9 +141,6 @@ class CaptionGenerator(object):
         next_cell_state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
         batch_size = tf.shape(self.features)[0]
 
-        emb_captions_in = self._word_embedding(inputs=captions_in)
-        args[-1] = emb_captions_in
-
         context, alpha = self._attention_layer(features, features_proj, h, reuse=False)
         alpha_ta = tf.TensorArray(tf.float32, self.T)
         alpha_ta.write(time, alpha)
@@ -197,12 +194,15 @@ class CaptionGenerator(object):
 
         # batch normalize feature vectors
         features = self._batch_norm(features, mode='train', name='conv_features')
-
-        c, h = self._get_initial_lstm(features=features)
         features_proj = self._project_features(features=features)
 
+        # this scope fixes things:
+        with tf.variable_scope('lstm'):
+            c, h = self._get_initial_lstm(features=features)
+            emb_captions_in = self._word_embedding(inputs=captions_in)
+
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self.H)
-        args = [c, h, lstm_cell.output_size, features, features_proj, captions_in, captions_out, mask]
+        args = [c, h, lstm_cell.output_size, features, features_proj, emb_captions_in, captions_out, mask]
 
         def loop_fn(time, cell_output, cell_state, loop_state):
             print args[-3]
@@ -267,16 +267,16 @@ class CaptionGenerator(object):
 
         # batch normalize feature vectors
         features = self._batch_norm(features, mode='test', name='conv_features')
-
-        init_state = self._get_initial_lstm(features=features)
-        init_input = self._word_embedding(inputs=tf.fill([tf.shape(features)[0]], self._start))
-
         features_proj = self._project_features(features=features)
 
-        context, alpha = self._attention_layer(features, features_proj, init_state[1], reuse=False)
+        with tf.variable_scope('lstm'):
+            init_state = self._get_initial_lstm(features=features)
+            init_input = self._word_embedding(inputs=tf.fill([tf.shape(features)[0]], self._start))
 
-        if self.selector:
-            context, beta = self._selector(context, init_state[1], reuse=False)
+            context, alpha = self._attention_layer(features, features_proj, init_state[1], reuse=False)
+
+            if self.selector:
+                context, beta = self._selector(context, init_state[1], reuse=False)
 
         init_input = tf.concat([init_input, context], 1)
 
@@ -301,8 +301,6 @@ class CaptionGenerator(object):
             logits = model._decode_lstm(embed_symbols, outputs, beam_context)
             logits = tf.reshape(logits, [-1, beam_size, logits.shape[-1]])
             return tf.nn.log_softmax(logits)
-
-        current_scope = tf.get_variable_scope()
 
         sampled_captions, logprobs, alphas, betas = beam_decoder(lstm_cell, beam_size, self._start, self._end,
                                                 init_state, init_input, context, alpha, beta,
