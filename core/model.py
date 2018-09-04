@@ -137,10 +137,12 @@ class CaptionGenerator(object):
                                             scope=(name+'batch_norm'))
 
     def cell_setup(self, time, *args):
-        features, features_proj, c, h, output_size, emb_captions_in = args
-        emit_output = None
+        c, h, output_size, features, features_proj, captions_in = args
         next_cell_state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
         batch_size = tf.shape(self.features)[0]
+
+        emb_captions_in = self._word_embedding(inputs=captions_in)
+        args[-1] = emb_captions_in
 
         context, alpha = self._attention_layer(features, features_proj, h, reuse=False)
         alpha_ta = tf.TensorArray(tf.float32, self.T)
@@ -159,9 +161,10 @@ class CaptionGenerator(object):
         return (elements_finished, next_input, next_cell_state, emit_output, next_loop_state)
 
     def cell_loop(self, time, cell_output, cell_state, loop_state, *args):
-        features, features_proj, c, h, output_size, emb_captions_in, captions_out, mask = args
+        features, features_proj, emb_captions_in, captions_out, mask = args
         emit_output = cell_output
         next_cell_state = cell_state
+        c, h = cell_state
 
         past_context, past_alpha_ta, past_loss_ta = loop_state
         
@@ -171,7 +174,6 @@ class CaptionGenerator(object):
                                     labels=captions_out[:, time],logits=logits)*mask[:, time])
         next_loss_ta = past_loss_ta.write(time, loss)
 
-        c, h = cell_state
         context, alpha = self._attention_layer(features, features_proj, h, reuse=True)
         next_alpha_ta = past_alpha_ta.write(time, alpha)
         if self.selector:
@@ -197,17 +199,17 @@ class CaptionGenerator(object):
         features = self._batch_norm(features, mode='train', name='conv_features')
 
         c, h = self._get_initial_lstm(features=features)
-        emb_captions_in = self._word_embedding(inputs=captions_in)
         features_proj = self._project_features(features=features)
 
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self.H)
+        args = [c, h, lstm_cell.output_size, features, features_proj, captions_in, captions_out, mask]
 
         def loop_fn(time, cell_output, cell_state, loop_state):
-            args = [features, features_proj, c, h, lstm_cell.output_size, emb_captions_in, captions_out, mask]
+            print args[-3]
             if cell_output is None:
                 return self.cell_setup(time, *args[:-2])
             else:
-                return self.cell_loop(time, cell_output, cell_state, loop_state, *args)
+                return self.cell_loop(time, cell_output, cell_state, loop_state, *args[3:])
 
         emit_ta, final_state, loop_state = tf.nn.raw_rnn(lstm_cell, loop_fn, scope='lstm')
         _, alpha_ta, loss_ta = loop_state
@@ -218,7 +220,7 @@ class CaptionGenerator(object):
             alphas_all = tf.reduce_sum(alphas, 1)      # (N, L)
             alpha_reg = self.alpha_c * tf.reduce_sum((float(self.T)/196 - alphas_all) ** 2)
             loss += alpha_reg
-        print tf.trainable_variables()
+
         return loss / tf.to_float(batch_size)
 
     def build_sampler(self, max_len=20):
