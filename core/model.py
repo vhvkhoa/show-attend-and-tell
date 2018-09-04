@@ -173,8 +173,10 @@ class CaptionGenerator(object):
 
         c, h = cell_state
         context, alpha = self._attention_layer(features, features_proj, h, reuse=True)
-        next_alpha_ta = tf.TensorArray(tf.float32, self.max_len)
+        next_alpha_ta = tf.TensorArray(tf.float32, self.T)
         alpha_ta = past_alpha_ta.write(time, alpha)
+        next_alpha_ta = tf.TensorArray(tf.float32, self.T)
+        alpha_ta.write(time, alpha)
         if self.selector:
             context, beta = self._selector(context, h, reuse=True)
 
