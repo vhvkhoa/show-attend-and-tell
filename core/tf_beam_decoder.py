@@ -298,6 +298,7 @@ class BeamSearchHelper(object):
             features_proj=None,
             outputs_to_score_fn=None,
             tokens_to_inputs_fn=None,
+            selector=True,
             cell_transform='default',
             scope=None
             ):
@@ -309,6 +310,7 @@ class BeamSearchHelper(object):
         self.model=model
         self.feats = features
         self.feats_proj = features_proj
+        self.selector = selector
         self.scope = scope
 
         if score_upper_bound is None and outputs_to_score_fn is None:
@@ -647,6 +649,7 @@ def beam_decoder(
         model=None,
         features=None,
         features_proj=None,
+        selector=True,
         cell_transform='default',
         output_dense=False,
         scope=None
@@ -726,6 +729,7 @@ def beam_decoder(
             model=model,
             features=features,
             features_proj=features_proj,
+            selector=selector,
             cell_transform=cell_transform,
             scope=varscope
             )

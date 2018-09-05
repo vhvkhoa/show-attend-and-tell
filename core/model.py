@@ -296,6 +296,6 @@ class CaptionGenerator(object):
         sampled_captions, logprobs, alphas, betas = beam_decoder(lstm_cell, beam_size, self._start, self._end, 
                                                 tokens_to_inputs_attention_fn, outputs_to_score_attention_fn,
                                                 features=features, features_proj=features_proj,
-                                                max_len=35, output_dense=True, scope='lstm', model=self)
+                                                max_len=35, selector=self.selector, output_dense=True, scope='lstm', model=self)
 
         return alphas, betas, sampled_captions
