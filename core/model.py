@@ -155,7 +155,7 @@ class CaptionGenerator(object):
         loss_ta = tf.TensorArray(tf.float32, size=self.T)
         next_loop_state = (context, alpha_ta, loss_ta)
 
-        emit_output = tf.zeros(self.args.output_size)
+        emit_output = tf.zeros(self.args.cell_output_size)
         elements_finished = tf.zeros([batch_size], dtype=tf.bool)
 
         return (elements_finished, next_input, next_cell_state, emit_output, next_loop_state)
