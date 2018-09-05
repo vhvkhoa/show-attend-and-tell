@@ -307,10 +307,8 @@ class BeamSearchHelper(object):
         self.stop_token = stop_token
         self.max_len = max_len
         self.model=model
-        self.feats=tf.reshape(tf.tile(tf.expand_dims(features, 1), [1, self.beam_size, 1, 1]),
-                            [-1] + features.shape[1:].as_list())
-        self.feats_proj=tf.reshape(tf.tile(tf.expand_dims(features_proj, 1), [1, self.beam_size, 1, 1]),
-                            [-1] + features_proj.shape[1:].as_list())
+        self.feats = features
+        self.feats_proj = features_proj
         self.scope = scope
 
         if score_upper_bound is None and outputs_to_score_fn is None:
@@ -357,7 +355,7 @@ class BeamSearchHelper(object):
     def beam_setup(self, time):
         emit_output = None
 
-        init_state = self.model._get_initial_lstm(features=features)
+        init_state = self.model._get_initial_lstm(features=self.feats)
         init_input = self.model._word_embedding(inputs=tf.fill([tf.shape(features)[0]], self._start), reuse=False)
 
         context, alpha = self.model._attention_layer(features, features_proj, init_state[1], reuse=False)
@@ -371,6 +369,11 @@ class BeamSearchHelper(object):
         init_state = tf.nn.rnn_cell.LSTMStateTuple(init_state[0], self.init_state[1])
         init_input = self.cell.tile_along_beam(init_input)
         context = self.cell.tile_along_beam(context)
+        
+        self.feats=tf.reshape(tf.tile(tf.expand_dims(self.feats, 1), [1, self.beam_size, 1, 1]),
+                            [-1] + self.feats.shape[1:].as_list())
+        self.feats_proj=tf.reshape(tf.tile(tf.expand_dims(self.feats_proj, 1), [1, self.beam_size, 1, 1]),
+                            [-1] + self.feats_proj.shape[1:].as_list())
 
         batch_size = tf.Dimension(None)
         if not nest.is_sequence(init_state):
