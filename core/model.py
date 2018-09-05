@@ -141,7 +141,7 @@ class CaptionGenerator(object):
 
         c, h = self._get_initial_lstm(features=self.args.features)
         next_cell_state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
-        self.args.emb_captions_in = self._word_embedding(inputs=self.args.captions_in, reuse=False)
+        self.args.emb_captions = self._word_embedding(inputs=self.captions, reuse=False)
 
         context, alpha = self._attention_layer(self.args.features, self.args.features_proj, h, reuse=False)
         alpha_ta = tf.TensorArray(tf.float32, self.T + 1)
@@ -149,7 +149,7 @@ class CaptionGenerator(object):
         if self.selector:
             context, beta = self._selector(context, h, reuse=False)
 
-        next_input = tf.concat([self.args.emb_captions_in[:,time,:], context], 1)
+        next_input = tf.concat([self.args.emb_captions[:,time,:], context], 1)
 
         loss_ta = tf.TensorArray(tf.float32, size=self.T)
         next_loop_state = (context, alpha_ta, loss_ta)
@@ -166,9 +166,9 @@ class CaptionGenerator(object):
 
         past_context, past_alpha_ta, past_loss_ta = loop_state
         
-        logits = self._decode_lstm(self.args.emb_captions_in[:,time-1,:], h, past_context, dropout=self.dropout, reuse=tf.AUTO_REUSE)
+        logits = self._decode_lstm(self.args.emb_captions[:,time-1,:], h, past_context, dropout=self.dropout, reuse=tf.AUTO_REUSE)
         loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
-                                    labels=self.args.captions_out[:, time-1],logits=logits)*self.args.mask[:, time-1])
+                                    labels=self.captions[:, time],logits=logits)*self.args.mask[:, time])
         next_loss_ta = past_loss_ta.write(time-1, loss)
 
         context, alpha = self._attention_layer(self.args.features, self.args.features_proj, h, reuse=True)
@@ -176,7 +176,7 @@ class CaptionGenerator(object):
         if self.selector:
             context, beta = self._selector(context, h, reuse=True)
 
-        next_input = tf.concat( [self.args.emb_captions_in[:,time,:], context], 1)
+        next_input = tf.concat( [self.args.emb_captions[:,time,:], context], 1)
         next_loop_state = (context, next_alpha_ta, next_loss_ta)
 
         elements_finished = (time >= self.T)
@@ -188,9 +188,7 @@ class CaptionGenerator(object):
         captions = self.captions
         batch_size = tf.shape(features)[0]
 
-        captions_in = captions[:, :self.T]
-        captions_out = captions[:, 1:]
-        mask = tf.to_float(tf.not_equal(captions_out, self._null))
+        mask = tf.to_float(tf.not_equal(captions, self._null))
 
         # batch normalize feature vectors
         features = self._batch_norm(features, mode='train', name='conv_features')
@@ -198,7 +196,7 @@ class CaptionGenerator(object):
 
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self.H)
         cell_output_size = lstm_cell.output_size
-        varnames = ['cell_output_size', 'features', 'features_proj', 'captions_in', 'captions_out', 'mask']
+        varnames = ['cell_output_size', 'features', 'features_proj', 'mask']
         class Args(object): pass
         self.args = Args()
         for v in varnames:
@@ -214,7 +212,6 @@ class CaptionGenerator(object):
         _, alpha_ta, loss_ta = loop_state
         loss = tf.reduce_sum(loss_ta.stack())
         alphas = tf.transpose(alpha_ta.stack(), (1, 0, 2))[:, :-1, :] # (N, T, L)
-        print alphas
 
         if self.alpha_c > 0:
             alphas_all = tf.reduce_sum(alphas, 1)      # (N, L)
