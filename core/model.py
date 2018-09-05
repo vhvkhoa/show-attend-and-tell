@@ -179,7 +179,7 @@ class CaptionGenerator(object):
         next_input = tf.concat( [self.args.emb_captions_in[:,time,:], context], 1)
         next_loop_state = (context, next_alpha_ta, next_loss_ta)
 
-        elements_finished = (time >= self.T)
+        elements_finished = (time >= self.T - 1)
 
         return (elements_finished, next_input, next_cell_state, emit_output, next_loop_state)
 
