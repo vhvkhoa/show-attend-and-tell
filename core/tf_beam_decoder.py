@@ -357,13 +357,13 @@ class BeamSearchHelper(object):
     def beam_setup(self, time):
         emit_output = None
 
-        init_state = self._get_initial_lstm(features=features)
-        init_input = self._word_embedding(inputs=tf.fill([tf.shape(features)[0]], self._start))
+        init_state = self.model._get_initial_lstm(features=features)
+        init_input = self.model._word_embedding(inputs=tf.fill([tf.shape(features)[0]], self._start), reuse=False)
 
-        context, alpha = self._attention_layer(features, features_proj, init_state[1], reuse=False)
+        context, alpha = self.model._attention_layer(features, features_proj, init_state[1], reuse=False)
 
         if self.selector:
-            context, beta = self._selector(context, init_state[1], reuse=False)
+            context, beta = self.model._selector(context, init_state[1], reuse=False)
 
         init_input = tf.concat([init_input, context], 1)
 
