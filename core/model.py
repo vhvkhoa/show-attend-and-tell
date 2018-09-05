@@ -141,11 +141,10 @@ class CaptionGenerator(object):
 
         c, h = self._get_initial_lstm(features=self.args.features)
         next_cell_state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
-        self.args.emb_captions_in = self._word_embedding(inputs=self.args.captions_in)
-
+        self.args.emb_captions_in = self._word_embedding(inputs=self.args.captions_in, reuse=False)
 
         context, alpha = self._attention_layer(self.args.features, self.args.features_proj, h, reuse=False)
-        alpha_ta = tf.TensorArray(tf.float32, self.T)
+        alpha_ta = tf.TensorArray(tf.float32, self.T + 1)
         alpha_ta.write(time, alpha)
         if self.selector:
             context, beta = self._selector(context, h, reuse=False)
@@ -214,7 +213,8 @@ class CaptionGenerator(object):
         emit_ta, final_state, loop_state = tf.nn.raw_rnn(lstm_cell, loop_fn, scope='lstm')
         _, alpha_ta, loss_ta = loop_state
         loss = tf.reduce_sum(loss_ta.stack())
-        alphas = tf.transpose(alpha_ta.stack(), (1, 0, 2)) # (N, T, L)
+        alphas = tf.transpose(alpha_ta.stack(), (1, 0, 2))[:, :-1, :] # (N, T, L)
+        print alphas
 
         if self.alpha_c > 0:
             alphas_all = tf.reduce_sum(alphas, 1)      # (N, L)
