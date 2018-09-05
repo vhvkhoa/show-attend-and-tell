@@ -145,7 +145,7 @@ class CaptionGenerator(object):
 
         context, alpha = self._attention_layer(self.args.features, self.args.features_proj, h, reuse=False)
         alpha_ta = tf.TensorArray(tf.float32, self.T + 1)
-        alpha_ta.write(time, alpha)
+        alpha_ta = alpha_ta.write(time, alpha)
         if self.selector:
             context, beta = self._selector(context, h, reuse=False)
 
