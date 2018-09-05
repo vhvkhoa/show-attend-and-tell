@@ -137,46 +137,49 @@ class CaptionGenerator(object):
                                             scope=(name+'batch_norm'))
 
     def cell_setup(self, time, *args):
-        c, h, output_size, features, features_proj, emb_captions_in = args
-        next_cell_state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
-        batch_size = tf.shape(self.features)[0]
+        features, features_proj = self.argsself.args['features_proj']
+        batch_size = tf.shape(features)[0]
 
-        context, alpha = self._attention_layer(features, features_proj, h, reuse=False)
+        c, h = self._get_initial_lstm(features=self.args.features)
+        next_cell_state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
+        self.args.emb_captions_in = self._word_embedding(inputs=self.args.captions_in)
+
+
+        context, alpha = self._attention_layer(self.args.features, self.args.features_proj, h, reuse=False)
         alpha_ta = tf.TensorArray(tf.float32, self.T)
         alpha_ta.write(time, alpha)
         if self.selector:
             context, beta = self._selector(context, h, reuse=False)
 
-        next_input = tf.concat([emb_captions_in[:,time,:], context], 1)
+        next_input = tf.concat([self.args.emb_captions_in[:,time,:], context], 1)
 
         loss_ta = tf.TensorArray(tf.float32, size=self.T)
         next_loop_state = (context, alpha_ta, loss_ta)
 
-        emit_output = tf.zeros(output_size)
+        emit_output = tf.zeros(self.args['output_size'])
         elements_finished = tf.zeros([batch_size], dtype=tf.bool)
 
         return (elements_finished, next_input, next_cell_state, emit_output, next_loop_state)
 
     def cell_loop(self, time, cell_output, cell_state, loop_state, *args):
-        features, features_proj, emb_captions_in, captions_out, mask = args
         emit_output = cell_output
         next_cell_state = cell_state
         c, h = cell_state
 
         past_context, past_alpha_ta, past_loss_ta = loop_state
         
-        logits = self._decode_lstm(emb_captions_in[:,time,:], h, past_context, dropout=self.dropout, reuse=tf.AUTO_REUSE)
-        print logits, captions_out, mask
+        logits = self._decode_lstm(self.args.emb_captions_in[:,time,:], h, past_context, dropout=self.dropout, reuse=tf.AUTO_REUSE)
+        print logits, self.args.captions_out, mask
         loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
-                                    labels=captions_out[:, time],logits=logits)*mask[:, time])
+                                    labels=self.args.captions_out[:, time],logits=logits)*self.args.mask[:, time])
         next_loss_ta = past_loss_ta.write(time, loss)
 
-        context, alpha = self._attention_layer(features, features_proj, h, reuse=True)
+        context, alpha = self._attention_layer(self.args.features, self.args.features_proj, h, reuse=True)
         next_alpha_ta = past_alpha_ta.write(time, alpha)
         if self.selector:
             context, beta = self._selector(context, h, reuse=True)
 
-        next_input = tf.concat( [emb_captions_in[:,time,:], context], 1)
+        next_input = tf.concat( [self.args.emb_captions_in[:,time,:], context], 1)
         next_loop_state = (context, next_alpha_ta, next_loss_ta)
 
         elements_finished = (time >= self.T)
@@ -196,18 +199,17 @@ class CaptionGenerator(object):
         features = self._batch_norm(features, mode='train', name='conv_features')
         features_proj = self._project_features(features=features)
 
-        # this scope fixes things:
-        with tf.variable_scope('lstm'):
-            c, h = self._get_initial_lstm(features=features)
-            emb_captions_in = self._word_embedding(inputs=captions_in)
-
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self.H)
-        args = [c, h, lstm_cell.output_size, features, features_proj, emb_captions_in, captions_out, mask]
+        cell_output_size = lstm_cell.output_size
+        varnames = ['cell_output_size', 'features', 'features_proj', 'captions_in', 'captions_out', 'mask']
+        class Args(object): pass
+        self.args = Args()
+        for v in varnames:
+            setattr(self.args, v, eval(v))
 
         def loop_fn(time, cell_output, cell_state, loop_state):
-            print args[-3]
             if cell_output is None:
-                return self.cell_setup(time, *args[:-2])
+                return self.cell_setup(time)
             else:
                 return self.cell_loop(time, cell_output, cell_state, loop_state, *args[3:])
 
@@ -271,18 +273,6 @@ class CaptionGenerator(object):
         features = self._batch_norm(features, mode='test', name='conv_features')
         features_proj = self._project_features(features=features)
 
-        # This scope fixes things:
-        with tf.variable_scope('lstm'):
-            init_state = self._get_initial_lstm(features=features)
-            init_input = self._word_embedding(inputs=tf.fill([tf.shape(features)[0]], self._start))
-
-            context, alpha = self._attention_layer(features, features_proj, init_state[1], reuse=False)
-
-            if self.selector:
-                context, beta = self._selector(context, init_state[1], reuse=False)
-
-        init_input = tf.concat([init_input, context], 1)
-
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self.H)
 
         def tokens_to_inputs_attention_fn(model, symbols, feats, feats_proj, hidden_state, beam_size):
@@ -305,8 +295,7 @@ class CaptionGenerator(object):
             logits = tf.reshape(logits, [-1, beam_size, logits.shape[-1]])
             return tf.nn.log_softmax(logits)
 
-        sampled_captions, logprobs, alphas, betas = beam_decoder(lstm_cell, beam_size, self._start, self._end,
-                                                init_state, init_input, context, alpha, beta,
+        sampled_captions, logprobs, alphas, betas = beam_decoder(lstm_cell, beam_size, self._start, self._end, context, 
                                                 tokens_to_inputs_attention_fn, outputs_to_score_attention_fn,
                                                 features=features, features_proj=features_proj,
                                                 max_len=35, output_dense=True, scope='lstm', model=self)

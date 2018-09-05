@@ -290,7 +290,7 @@ class BeamSearchHelper(object):
     # a large negative constant instead
     INVALID_SCORE = -1e18
 
-    def __init__(self, cell, beam_size, start_token, stop_token, initial_state, initial_input, initial_context, initial_alpha, initial_beta,
+    def __init__(self, cell, beam_size, start_token, stop_token, initial_context,
             score_upper_bound=None,
             max_len=100,
             model=None,
@@ -311,8 +311,6 @@ class BeamSearchHelper(object):
                             [-1] + features.shape[1:].as_list())
         self.feats_proj=tf.reshape(tf.tile(tf.expand_dims(features_proj, 1), [1, self.beam_size, 1, 1]),
                             [-1] + features_proj.shape[1:].as_list())
-        self.initial_alpha = initial_alpha
-        self.initial_beta = initial_beta
         self.scope = scope
 
         if score_upper_bound is None and outputs_to_score_fn is None:
@@ -336,25 +334,13 @@ class BeamSearchHelper(object):
             else:
                 cell_transform = 'replicate'
 
-        if cell_transform == 'none':
-            self.cell = cell
-            self.initial_state = initial_state
-            self.initial_input = initial_input
-            self.initial_context = initial_context
-        elif cell_transform == 'flatten':
+        if cell_transform == 'flatten':
             self.cell = BeamFlattenWrapper(cell, self.beam_size)
-            self.initial_state = self.cell.tile_along_beam(initial_state)
-            self.initial_input = self.cell.tile_along_beam(initial_input)
-            self.initial_context = self.cell.tile_along_beam(initial_context)
         elif cell_transform == 'replicate':
             self.cell = BeamReplicateWrapper(cell, self.beam_size)
-            self.initial_state = self.cell.tile_along_beam(initial_state)
-            self.initial_input = self.cell.tile_along_beam(initial_input)
-            self.initial_context = self.cell.tile_along_beam(initial_context)
         else:
-            raise ValueError("cell_transform must be one of: 'default', 'flatten', 'replicate', 'none'")
-
-        self.initial_state = tf.nn.rnn_cell.LSTMStateTuple(self.initial_state[0], self.initial_state[1])
+            raise ValueError("cell_transform must be one of: 'default', 'flatten', 'replicate'")
+        self.initial_context = self.cell.tile_along_beam(initial_context)
 
         self._cell_transform_used = cell_transform
 
@@ -362,34 +348,6 @@ class BeamSearchHelper(object):
             self.outputs_to_score_fn = outputs_to_score_fn
         if tokens_to_inputs_fn is not None:
             self.tokens_to_inputs_fn = tokens_to_inputs_fn
-
-        batch_size = tf.Dimension(None)
-        if not nest.is_sequence(self.initial_state):
-            batch_size = batch_size.merge_with(self.initial_state.get_shape()[0])
-        else:
-            for tensor in nest.flatten(self.initial_state):
-                batch_size = batch_size.merge_with(tensor.get_shape()[0])
-
-        if not nest.is_sequence(self.initial_input):
-            batch_size = batch_size.merge_with(self.initial_input.get_shape()[0])
-        else:
-            for tensor in nest.flatten(self.initial_input):
-                batch_size = batch_size.merge_with(tensor.get_shape()[0])
-
-        self.inferred_batch_size = batch_size.value
-        if self.inferred_batch_size is not None:
-            self.batch_size = self.inferred_batch_size
-        else:
-            if not nest.is_sequence(self.initial_state):
-                self.batch_size = tf.shape(self.initial_state)[0]
-            else:
-                self.batch_size = tf.shape(list(nest.flatten(self.initial_state))[0])[0]
-
-        self.inferred_batch_size_times_beam_size = None
-        if self.inferred_batch_size is not None:
-            self.inferred_batch_size_times_beam_size = self.inferred_batch_size * self.beam_size
-
-        self.batch_size_times_beam_size = self.batch_size * self.beam_size
 
     def outputs_to_score_fn(self, cell_output):
         return tf.nn.log_softmax(cell_output)
@@ -399,21 +357,64 @@ class BeamSearchHelper(object):
 
     def beam_setup(self, time):
         emit_output = None
-        next_cell_state = self.initial_state
-        next_input = self.initial_input
+
+        init_state = self._get_initial_lstm(features=features)
+        init_input = self._word_embedding(inputs=tf.fill([tf.shape(features)[0]], self._start))
+
+        context, alpha = self._attention_layer(features, features_proj, init_state[1], reuse=False)
+
+        if self.selector:
+            context, beta = self._selector(context, init_state[1], reuse=False)
+
+        init_input = tf.concat([init_input, context], 1)
+
+        init_state = self.cell.tile_along_beam(init_state)
+        init_state = tf.nn.rnn_cell.LSTMStateTuple(init_state[0], self.init_state[1])
+        init_input = self.cell.tile_along_beam(init_input)
+
+        batch_size = tf.Dimension(None)
+        if not nest.is_sequence(init_state):
+            batch_size = batch_size.merge_with(init_state.get_shape()[0])
+        else:
+            for tensor in nest.flatten(init_state):
+                batch_size = batch_size.merge_with(tensor.get_shape()[0])
+
+        if not nest.is_sequence(init_input):
+            batch_size = batch_size.merge_with(init_input.get_shape()[0])
+        else:
+            for tensor in nest.flatten(init_input):
+                batch_size = batch_size.merge_with(tensor.get_shape()[0])
+
+        self.inferred_batch_size = batch_size.value
+        if self.inferred_batch_size is not None:
+            self.batch_size = self.inferred_batch_size
+        else:
+            if not nest.is_sequence(init_state):
+                self.batch_size = tf.shape(init_state)[0]
+            else:
+                self.batch_size = tf.shape(list(nest.flatten(init_state))[0])[0]
+
+        self.inferred_batch_size_times_beam_size = None
+        if self.inferred_batch_size is not None:
+            self.inferred_batch_size_times_beam_size = self.inferred_batch_size * self.beam_size
+
+        self.batch_size_times_beam_size = self.batch_size * self.beam_size
+
+        next_cell_state = init_state
+        next_input = init_input
 
         # Set up the beam search tracking state
         cand_symbols = tf.fill([self.batch_size, 0], tf.constant(self.stop_token, dtype=tf.int32))
         cand_logprobs = tf.ones((self.batch_size,), dtype=tf.float32) * -float('inf')
         cand_finished = tf.zeros((self.batch_size,), dtype=tf.bool)
 
-        cand_alphas = tf.reshape(self.initial_alpha, [-1, 1, self.initial_alpha.shape[-1]])
-        cand_betas = tf.reshape(self.initial_beta, [-1, 1])
+        cand_alphas = tf.reshape(alpha, [-1, 1, alpha.shape[-1]])
+        cand_betas = tf.reshape(beta, [-1, 1])
 
-        beam_alphas = tf.reshape(tf.tile(tf.expand_dims(self.initial_alpha, 1), 
+        beam_alphas = tf.reshape(tf.tile(tf.expand_dims(alpha, 1), 
                                         [1, self.beam_size, 1]), 
-                                [-1, 1, self.initial_alpha.shape[-1]])
-        beam_betas = tf.reshape(tf.tile(self.initial_beta, [1, self.beam_size]),
+                                [-1, 1, alpha.shape[-1]])
+        beam_betas = tf.reshape(tf.tile(beta, [1, self.beam_size]),
                                 [-1, 1])
 
         first_in_beam_mask = tf.equal(tf.range(self.batch_size_times_beam_size) % self.beam_size, 0)
@@ -636,11 +637,7 @@ def beam_decoder(
         beam_size,
         start_token,
         stop_token,
-        initial_state,
-        initial_input,
         initial_context,
-        initial_alpha,
-        initial_beta,
         tokens_to_inputs_fn,
         outputs_to_score_fn=None,
         score_upper_bound=None,
@@ -659,9 +656,6 @@ def beam_decoder(
         beam_size: the beam size for this search
         stop_token: the index of the symbol used to indicate the end of the
             output
-        initial_state: initial cell state for the decoder
-        initial_input: initial input into the decoder (typically the embedding
-            of a START token)
         tokens_to_inputs_fn: function to go from token numbers to cell inputs.
             A typical implementation would look up the tokens in an embedding
             matrix.
@@ -723,11 +717,7 @@ def beam_decoder(
             beam_size=beam_size,
             start_token=start_token,
             stop_token=stop_token,
-            initial_state=initial_state,
-            initial_input=initial_input,
             initial_context=initial_context,
-            initial_alpha=initial_alpha,
-            initial_beta=initial_beta,
             tokens_to_inputs_fn=tokens_to_inputs_fn,
             outputs_to_score_fn=outputs_to_score_fn,
             score_upper_bound=score_upper_bound,
