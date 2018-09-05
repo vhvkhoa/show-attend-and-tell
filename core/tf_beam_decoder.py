@@ -290,7 +290,7 @@ class BeamSearchHelper(object):
     # a large negative constant instead
     INVALID_SCORE = -1e18
 
-    def __init__(self, cell, beam_size, start_token, stop_token, initial_context,
+    def __init__(self, cell, beam_size, start_token, stop_token,
             score_upper_bound=None,
             max_len=100,
             model=None,
@@ -340,7 +340,6 @@ class BeamSearchHelper(object):
             self.cell = BeamReplicateWrapper(cell, self.beam_size)
         else:
             raise ValueError("cell_transform must be one of: 'default', 'flatten', 'replicate'")
-        self.initial_context = self.cell.tile_along_beam(initial_context)
 
         self._cell_transform_used = cell_transform
 
@@ -371,6 +370,7 @@ class BeamSearchHelper(object):
         init_state = self.cell.tile_along_beam(init_state)
         init_state = tf.nn.rnn_cell.LSTMStateTuple(init_state[0], self.init_state[1])
         init_input = self.cell.tile_along_beam(init_input)
+        context = self.cell.tile_along_beam(context)
 
         batch_size = tf.Dimension(None)
         if not nest.is_sequence(init_state):
@@ -420,7 +420,7 @@ class BeamSearchHelper(object):
         first_in_beam_mask = tf.equal(tf.range(self.batch_size_times_beam_size) % self.beam_size, 0)
 
         beam_symbols = tf.fill([self.batch_size_times_beam_size, 0], tf.constant(self.stop_token, dtype=tf.int32))
-        beam_context = tf.reshape(self.initial_context, [-1, self.initial_context.shape[-1]])
+        beam_context = tf.reshape(context, [-1, context.shape[-1]])
 
         beam_logprobs = tf.where(
             first_in_beam_mask,
@@ -637,7 +637,6 @@ def beam_decoder(
         beam_size,
         start_token,
         stop_token,
-        initial_context,
         tokens_to_inputs_fn,
         outputs_to_score_fn=None,
         score_upper_bound=None,
@@ -717,7 +716,6 @@ def beam_decoder(
             beam_size=beam_size,
             start_token=start_token,
             stop_token=stop_token,
-            initial_context=initial_context,
             tokens_to_inputs_fn=tokens_to_inputs_fn,
             outputs_to_score_fn=outputs_to_score_fn,
             score_upper_bound=score_upper_bound,
