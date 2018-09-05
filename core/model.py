@@ -137,8 +137,7 @@ class CaptionGenerator(object):
                                             scope=(name+'batch_norm'))
 
     def cell_setup(self, time, *args):
-        features, features_proj = self.argsself.args['features_proj']
-        batch_size = tf.shape(features)[0]
+        batch_size = tf.shape(self.args.features)[0]
 
         c, h = self._get_initial_lstm(features=self.args.features)
         next_cell_state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
