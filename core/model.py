@@ -168,7 +168,6 @@ class CaptionGenerator(object):
         past_context, past_alpha_ta, past_loss_ta = loop_state
         
         logits = self._decode_lstm(self.args.emb_captions_in[:,time,:], h, past_context, dropout=self.dropout, reuse=tf.AUTO_REUSE)
-        print logits, self.args.captions_out, mask
         loss = tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(
                                     labels=self.args.captions_out[:, time],logits=logits)*self.args.mask[:, time])
         next_loss_ta = past_loss_ta.write(time, loss)
