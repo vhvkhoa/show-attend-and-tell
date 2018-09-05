@@ -368,7 +368,7 @@ class BeamSearchHelper(object):
         init_input = tf.concat([init_input, context], 1)
 
         init_state = self.cell.tile_along_beam(init_state)
-        init_state = tf.nn.rnn_cell.LSTMStateTuple(init_state[0], self.init_state[1])
+        init_state = tf.nn.rnn_cell.LSTMStateTuple(init_state[0], init_state[1])
         init_input = self.cell.tile_along_beam(init_input)
         context = self.cell.tile_along_beam(context)
         
