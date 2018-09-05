@@ -210,7 +210,7 @@ class CaptionGenerator(object):
             if cell_output is None:
                 return self.cell_setup(time)
             else:
-                return self.cell_loop(time, cell_output, cell_state, loop_state, *args[3:])
+                return self.cell_loop(time, cell_output, cell_state, loop_state)
 
         emit_ta, final_state, loop_state = tf.nn.raw_rnn(lstm_cell, loop_fn, scope='lstm')
         _, alpha_ta, loss_ta = loop_state
