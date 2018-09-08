@@ -9,6 +9,7 @@ from scipy import ndimage
 from scipy.misc import imresize
 from utils import *
 from tqdm import tqdm
+import logging
 
 class CaptioningSolver(object):
     def __init__(self, model, data, val_data, **kwargs):
@@ -68,6 +69,8 @@ class CaptioningSolver(object):
         return batch_feats
 
     def train(self, beam_size=1):
+        logging.basicConfig(filename='logging.txt', level=logging.DEBUG, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
         # train/val dataset
         # Changed this because I keep less features than captions, see prepro
         n_examples = self.data['n_examples']
@@ -110,10 +113,10 @@ class CaptioningSolver(object):
         bleu_score = tf.placeholder(tf.float32, [])
         bleu_summary_op = tf.summary.scalar('Bleu-1 Score', bleu_score)
 
-        print "The number of epoch: %d" %self.n_epochs
-        print "Data size: %d" %n_examples
-        print "Batch size: %d" %self.batch_size
-        print "Iterations per epoch: %d" %n_iters_per_epoch
+        logging.info("The number of epoch: %d" %self.n_epochs)
+        logging.info("Data size: %d" %n_examples)
+        logging.info("Batch size: %d" %self.batch_size)
+        logging.info("Iterations per epoch: %d" %n_iters_per_epoch)
 
         config = tf.ConfigProto(allow_soft_placement = True)
         #config.gpu_options.per_process_gpu_memory_fraction=0.9
@@ -125,13 +128,13 @@ class CaptioningSolver(object):
             saver = tf.train.Saver(max_to_keep=20)
 
             if self.pretrained_model is not None:
-                print "Start training with pretrained Model.."
+                logging.info("Start training with pretrained Model.")
                 saver.restore(sess, self.pretrained_model)
             if self.start_from is not None:
                 assign_zero_op = global_step.assign(self.start_from)
                 sess.run(assign_zero_op)
             gs = sess.run(global_step)
-            print gs
+            logging.info("Start training at %d time-step.", gs)
             prev_loss = -1
             max_bleu_score = -1
             curr_loss = 0
@@ -156,7 +159,7 @@ class CaptioningSolver(object):
                         summary_writer.add_summary(summary, gs+1)
 
                     if (gs+1) % self.print_every == 0:
-                        print "\nTrain loss at epoch %d & iteration %d (mini-batch): %.5f" %(e+1, gs+1, l)
+                        logging.info("\nTrain loss at epoch %d & iteration %d (mini-batch): %.5f" %(e+1, gs+1, l))
                         ground_truths = captions[image_ids == image_ids_batch[0]]
                         decoded = decode_captions(ground_truths, self.model.idx_to_word)
                         for j, gt in enumerate(decoded):
@@ -183,9 +186,9 @@ class CaptioningSolver(object):
                         saver.save(sess, os.path.join(self.model_path, 'model_%d' % (gs+1)), global_step=gs+1)
                         print "model-%s saved." %(gs+1)
 
-                print "Previous epoch loss: ", prev_loss
-                print "Current epoch loss: ", curr_loss
-                print "Elapsed time: ", time.time() - start_t
+                logging.info("Previous epoch loss: ", prev_loss)
+                logging.info("Current epoch loss: ", curr_loss)
+                logging.info("Elapsed time: ", time.time() - start_t)
                 prev_loss = curr_loss
                 curr_loss = 0
 
