@@ -176,7 +176,7 @@ class CaptioningSolver(object):
                         summary_writer.add_summary(summary, gs+1)
 
                     if (gs+1) % self.print_every == 0:
-                        logging.info("\nTrain loss at epoch %d & iteration %d (mini-batch): %.5f" %(e+1, gs+1, l))
+                        logging.info("Train loss at epoch %d & iteration %d (mini-batch): %.5f" %(e+1, gs+1, l))
                         ground_truths = captions[image_ids == image_ids_batch[0]]
                         decoded = decode_captions(ground_truths, self.model.idx_to_word)
                         for j, gt in enumerate(decoded):
