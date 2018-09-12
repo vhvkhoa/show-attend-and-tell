@@ -14,7 +14,7 @@ def main():
                                        dim_hidden=1536, n_time_step=31, prev2out=True,
                                                  ctx2out=True, alpha_c=1.0, selector=True, dropout=True)
 
-    solver = CaptioningSolver(model, data, val_data, n_epochs=20, batch_size=64, update_rule='momentum',
+    solver = CaptioningSolver(model, data, val_data, n_epochs=20, batch_size=64, update_rule='rmsprop',
                                     learning_rate=0.001, print_every=10, eval_every=200, save_every=200, image_path='./image/',
                                     pretrained_model=None, start_from=None, model_path='model/lstm/', 
                                     test_model='model/lstm/model-10',
