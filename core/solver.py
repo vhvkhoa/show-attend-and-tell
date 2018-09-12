@@ -69,8 +69,24 @@ class CaptioningSolver(object):
         return batch_feats
 
     def train(self, beam_size=1):
-        logging.basicConfig(filename='logging.txt', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-        logging.getLogger().setLevel(logging.INFO)
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+
+        # Set logging to console
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter("[%(levelname)s]|%(asctime)s| - %(message)s")
+        handler.setFormatter(formatter)
+        
+        logger.addHandler(handler)
+        
+        # Set logging to file
+        handler = logging.FileHandler('train.log')
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter("[%(levelname)s]|%(asctime)s| - %(message)s")
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
 
         # train/val dataset
         # Changed this because I keep less features than captions, see prepro
