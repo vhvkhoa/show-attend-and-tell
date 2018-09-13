@@ -6,6 +6,7 @@ import time
 import heapq
 import os
 import sys
+import logging
 sys.path.append('../coco-caption')
 from pycocoevalcap.eval import COCOEvalCap
 from pycocotools.coco import COCO
@@ -115,7 +116,7 @@ def evaluate(data_path='./data', split='val', get_scores=False):
     final_scores = {}
     for metric, score in cocoEval.eval.items():
         final_scores[metric] = score
-        print '%s:\t%.3f'%(metric, score)
+        logging.info('%s:\t%.3f'%(metric, score))
 
     if get_scores:
         return final_scores
