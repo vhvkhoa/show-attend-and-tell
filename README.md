@@ -1,7 +1,7 @@
 # Show, Attend and Tell 
 <b> This code is based on the code of a github user [yunjey](https://github.com/yunjey/show-attend-and-tell)</b>. It is an attempt to reproduce the performance of the image captioning method proposed in [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention](https://arxiv.org/pdf/1502.03044.pdf).
 
-***Update 09/10/2018**: Used raw_rnn instead of python's loop in training phase, which helps the training run much faster and not get OOM when increase LSTM's hidden state size. Added some flags for users to use the code easier.*
+***Update 09/17/2018**: Used raw_rnn instead of python's loop in training phase, which helps the training run much faster and not get OOM when increase LSTM's hidden state size. Added some flags for users to use the code easier.*
 
 ## Some important modifications we made:
 
