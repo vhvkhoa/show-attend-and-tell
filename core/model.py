@@ -16,27 +16,13 @@ import tensorflow as tf
 from tf_beam_decoder import beam_decoder
 class CaptionGenerator(object):
     def __init__(self, word_to_idx, dim_feature=[196, 512], dim_embed=512, dim_hidden=1024, n_time_step=16,
-                  prev2out=True, ctx2out=True, alpha_c=0.0, selector=True, dropout=True):
-        """
-        Args:
-            word_to_idx: word-to-index mapping dictionary.
-            dim_feature: (optional) Dimension of vggnet19 conv5_3 feature vectors.
-            dim_embed: (optional) Dimension of word embedding.
-            dim_hidden: (optional) Dimension of all hidden state.
-            n_time_step: (optional) Time step size of LSTM.
-            prev2out: (optional) previously generated word to hidden state. (see Eq (7) for explanation)
-            ctx2out: (optional) context to hidden state (see Eq (7) for explanation)
-            alpha_c: (optional) Doubly stochastic regularization coefficient. (see Section (4.2.1) for explanation)
-            selector: (optional) gating scalar for context vector. (see Section (4.2.1) for explanation)
-            dropout: (optional) If true then dropout layer is added.
-        """
-
+                  prev2out=True, ctx2out=True, alpha_c=0.0, enable_selector=True, dropout=True):
         self.word_to_idx = word_to_idx
         self.idx_to_word = {i: w for w, i in word_to_idx.iteritems()}
         self.prev2out = prev2out
         self.ctx2out = ctx2out
         self.alpha_c = alpha_c
-        self.selector = selector
+        self.enable_selector = enable_selector
         self.dropout = dropout
         self.V = len(word_to_idx)
         self.L = dim_feature[0]
@@ -146,7 +132,7 @@ class CaptionGenerator(object):
         context, alpha = self._attention_layer(self.args.features, self.args.features_proj, h, reuse=False)
         alpha_ta = tf.TensorArray(tf.float32, self.T + 1)
         alpha_ta = alpha_ta.write(time, alpha)
-        if self.selector:
+        if self.enable_selector:
             context, beta = self._selector(context, h, reuse=False)
 
         next_input = tf.concat([self.args.emb_captions[:,time,:], context], 1)
@@ -173,7 +159,7 @@ class CaptionGenerator(object):
 
         context, alpha = self._attention_layer(self.args.features, self.args.features_proj, h, reuse=True)
         next_alpha_ta = past_alpha_ta.write(time, alpha)
-        if self.selector:
+        if self.enable_selector:
             context, beta = self._selector(context, h, reuse=True)
 
         next_input = tf.concat( [self.args.emb_captions[:,time,:], context], 1)
@@ -245,7 +231,7 @@ class CaptionGenerator(object):
                 context, alpha = self._attention_layer(features, features_proj, h, reuse=(t!=0))
                 alpha_list.append(alpha)
 
-                if self.selector:
+                if self.enable_selector:
                     context, beta = self._selector(context, h, reuse=(t!=0))
                     beta_list.append(beta)
 
@@ -275,7 +261,7 @@ class CaptionGenerator(object):
 
             context, alpha = self._attention_layer(feats, feats_proj, hidden_state, reuse=True)
 
-            if self.selector:
+            if self.enable_selector:
                 context, beta = self._selector(context, hidden_state, reuse=True)
 
             next_input = tf.concat([embed_symbols, context], 1)
@@ -293,6 +279,6 @@ class CaptionGenerator(object):
         sampled_captions, logprobs, alphas, betas = beam_decoder(lstm_cell, beam_size, self._start, self._end, 
                                                 tokens_to_inputs_attention_fn, outputs_to_score_attention_fn,
                                                 features=features, features_proj=features_proj,
-                                                max_len=35, selector=self.selector, output_dense=True, scope='lstm', model=self)
+                                                max_len=35, selector=self.enable_selector, output_dense=True, scope='lstm', model=self)
 
         return alphas, betas, sampled_captions

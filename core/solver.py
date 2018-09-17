@@ -29,7 +29,6 @@ class CaptioningSolver(object):
             - update_rule: A string giving the name of an update rule
             - learning_rate: Learning rate; default value is 0.01.
             - print_every: Integer; training losses will be printed every print_every iterations.
-            - save_every: Integer; model variables will be saved every save_every epoch.
             - pretrained_model: String; pretrained model path
             - model_path: String; model path for saving
             - test_model: String; model path for test
@@ -42,25 +41,24 @@ class CaptioningSolver(object):
         self.batch_size = kwargs.pop('batch_size', 100)
         self.update_rule = kwargs.pop('update_rule', 'adam')
         self.learning_rate = kwargs.pop('learning_rate', 0.01)
-        self.print_score = kwargs.pop('print_score', False)
+        self.metric = kwargs.pop('metric', 'CIDEr')
         self.print_every = kwargs.pop('print_every', 100)
         self.eval_every = kwargs.pop('eval_every', 200)
-        self.save_every = kwargs.pop('save_every', 200)
-        self.start_from = kwargs.pop('start_from', None)
+        self.start_from = kwargs.pop('start_from', 0)
         self.log_path = kwargs.pop('log_path', './log/')
-        self.model_path = kwargs.pop('model_path', './model/')
-        self.pretrained_model = kwargs.pop('pretrained_model', None)
+        self.checkpoint_dir = kwargs.pop('checkpoint_dir', './model/')
+        self.pretrained_model = kwargs.pop('pretrained_model', '')
         self.test_model = kwargs.pop('test_model', './model/lstm/model-1')
         # set an optimizer by update rule
         if self.update_rule == 'adam':
-            self.optimizer = tf.train.AdamOptimizer
+            self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         elif self.update_rule == 'momentum':
-            self.optimizer = tf.train.MomentumOptimizer
+            self.optimizer = tf.train.MomentumOptimizer(learning_rate=self.learning_rate, momentum=0.9)
         elif self.update_rule == 'rmsprop':
-            self.optimizer = tf.train.RMSPropOptimizer
+            self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate, momentum=0.9, decay=0.95)
 
-        if not os.path.exists(self.model_path):
-            os.makedirs(self.model_path)
+        if not os.path.exists(self.checkpoint_dir):
+            os.makedirs(self.checkpoint_dir)
         if not os.path.exists(self.log_path):
             os.makedirs(self.log_path)
 
@@ -108,7 +106,7 @@ class CaptioningSolver(object):
         # train op
         with tf.variable_scope(tf.get_variable_scope(), reuse=False):
             global_step = tf.Variable(0, name='global_step', trainable=False)
-            optimizer = self.optimizer(learning_rate=self.learning_rate, momentum=0.9, decay=0.95)
+            optimizer = self.optimizer
             grads = tf.gradients(loss, tf.trainable_variables())
             grads_and_vars = list(zip(grads, tf.trainable_variables()))
             train_op = optimizer.apply_gradients(grads_and_vars=grads_and_vars, global_step=global_step)
@@ -123,12 +121,14 @@ class CaptioningSolver(object):
             #tf.histogram_summary(var.op.name+'/gradient', grad)
             tf.summary.histogram(var.op.name+'/gradient', grad)
 
-        #summary_op = tf.merge_all_summaries()
         summary_op = tf.summary.merge_all()
 
-        # Summary for BLEU-1 score
-        bleu_score = tf.placeholder(tf.float32, [])
-        bleu_summary_op = tf.summary.scalar('Bleu-1 Score', bleu_score)
+        # Summary for every metric
+        metrics = ['Bleu_%d' % i+1 for i in range(4)] + ['METEOR', 'ROUGE_L', 'CIDEr']
+        score_placeholders = [tf.placeholder(tf.float32, [], metric) for metric in metrics]
+        score_summary_op = tf.summary.merge([tf.summary.scalar('%s Score' % metric, score_ph) 
+                                                for score_ph, metric in zip(score_placeholders, metrics)])
+
 
         logging.info("The number of epoch: %d" %self.n_epochs)
         logging.info("Data size: %d" %n_examples)
@@ -143,13 +143,14 @@ class CaptioningSolver(object):
             #summary_writer = tf.train.SummaryWriter(self.log_path, graph=tf.get_default_graph())
             summary_writer = tf.summary.FileWriter(self.log_path, graph=tf.get_default_graph())
             saver = tf.train.Saver(max_to_keep=20)
+            best_ckpt_saver = tf.train.Saver(max_to_keep=1)
 
-            if self.pretrained_model is not None:
+            if self.pretrained_model is not '':
                 logging.info("Start training with pretrained Model.")
                 saver.restore(sess, self.pretrained_model)
-            if self.start_from is not None:
-                assign_zero_op = global_step.assign(self.start_from)
-                sess.run(assign_zero_op)
+            if self.start_from is not 0:
+                assign_global_step_op = global_step.assign(self.start_from)
+                sess.run(assign_global_step_op)
             gs = sess.run(global_step)
             logging.info("Start training at %d time-step.", gs)
             prev_loss = -1
@@ -187,21 +188,21 @@ class CaptioningSolver(object):
 
 
                     # print out BLEU scores and file write
-                    if self.print_score and (gs+1) % self.eval_every == 0:
+                    if (gs+1) % self.eval_every == 0:
 			self.test(self.val_data, split='val', model_sampler_ops=model_sampler_ops, sess=sess)
 
                         scores = evaluate(data_path='./data', split='val', get_scores=True)
-                        write_bleu(scores=scores, path=self.model_path, epoch=e, iteration=gs+1)
-                        bleu_summary = sess.run(bleu_summary_op, feed_dict={bleu_score: scores['Bleu_1']})
-                        summary_writer.add_summary(bleu_summary, gs+1)
-                        if max_bleu_score < scores['Bleu_1']:
-                            saver.save(sess, os.path.join(self.model_path, 'best_model'))
-                            max_bleu_score = scores['Bleu_1']
+                        write_bleu(scores=scores, path=self.checkpoint_dir, epoch=e, iteration=gs+1)
+                        score_summary = sess.run(score_summary_op, feed_dict={score_ph: scores[metric] for score_ph, metric in zip(score_placeholders, metrics)})
+                        summary_writer.add_summary(score_summary, gs+1)
 
-                    # save model's parameters
-                    if (gs+1) % self.save_every == 0:
-                        saver.save(sess, os.path.join(self.model_path, 'model_%d' % (gs+1)), global_step=gs+1)
-                        print "model-%s saved." %(gs+1)
+                        # save model's parameters
+                        saver.save(sess, os.path.join(self.model_path, 'checkpoint'), global_step=gs+1)
+                        logging.info("model-%s saved." %(gs+1))
+
+                        if max_score < scores[self.metric]:
+                            best_ckpt_saver.save(sess, os.path.join(self.checkpoint_dir, 'best_model.ckpt'))
+                            max_score = scores[self.metric]
 
                 logging.info("Previous epoch loss: ", prev_loss)
                 logging.info("Current epoch loss: ", curr_loss)
