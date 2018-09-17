@@ -1,6 +1,8 @@
 # Show, Attend and Tell 
 <b> This code is based on the code of a github user [yunjey](https://github.com/yunjey/show-attend-and-tell)</b>. It is an attempt to reproduce the performance of the image captioning method proposed in [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention](https://arxiv.org/pdf/1502.03044.pdf).
 
+***Update 09/10/2018**: Used raw_rnn instead of python's loop in training phase, which helps the training run much faster and not get OOM when increase LSTM's hidden state size. Added some flags for users to use the code easier.*
+
 ## Some important modifications we made:
 
 - Changed the image-encoder to Resnet-101 by Pytorch, *you may want to take a look at [prepro.py](prepro.py) and modify line 197 to change the encoder to other CNN models*.
@@ -8,6 +10,8 @@
 - Fixed the evaluation code to get the right score on [MSCOCO dataset](http://cocodataset.org)'s offered validation set *(the [yunjey](https://github.com/yunjey/show-attend-and-tell)'s code pruned some sentences which don't satisfy some requirements, this leads to higher scores in evaluation phrase so we are not able to properly compare our model's performance to others)*.
 
 - Added beam-search to the inference phrase, this is a modification version of this [beam search](https://gist.github.com/nikitakit/6ab61a73b86c50ad88d409bac3c3d09f) algorithm, which improved the model's performance significantly compared to other versions of beam search.
+
+- Used [raw_rnn](https://www.tensorflow.org/api_docs/python/tf/nn/raw_rnn) instead of python's loop in training phase, which helps the training run much faster and not get OOM when increase LSTM's hidden state size.
 
 ## Dependencies:
 
