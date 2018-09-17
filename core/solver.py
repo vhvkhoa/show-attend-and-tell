@@ -108,7 +108,7 @@ class CaptioningSolver(object):
         # train op
         with tf.variable_scope(tf.get_variable_scope(), reuse=False):
             global_step = tf.Variable(0, name='global_step', trainable=False)
-            optimizer = self.optimizer(learning_rate=self.learning_rate, momentum=0.9)
+            optimizer = self.optimizer(learning_rate=self.learning_rate, momentum=0.9, decay=0.95)
             grads = tf.gradients(loss, tf.trainable_variables())
             grads_and_vars = list(zip(grads, tf.trainable_variables()))
             train_op = optimizer.apply_gradients(grads_and_vars=grads_and_vars, global_step=global_step)
