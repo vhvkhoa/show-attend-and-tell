@@ -16,7 +16,7 @@
 ## Dependencies:
 
 - Python 2.7
-- tensorflow 1.4 (*Higher versions are currently not able to be used this code due to errors in beam search, we are trying to fix this*)
+- tensorflow 1.4 (*Higher versions are currently not able to be used this code due to errors in beam search, we are working on it.*)
 - pytorch
 - torchvision
 - skimage
@@ -55,6 +55,8 @@ $ tensorboard --logdir=log/
 ```
 
 ### Evaluation and Inference:
+
+**TODO**: Make eval and inference code and document to them.
 
 ## References:
 
