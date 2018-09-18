@@ -134,7 +134,7 @@ def _build_caption_vector(annotations, word_to_idx, max_length=15):
             if word in word_to_idx:
                 cap_vec.append(word_to_idx[word])
             else:
-                cap_vec.append(word_to_idx['UNK'])
+                cap_vec.append(word_to_idx['<UNK>'])
         cap_vec.append(word_to_idx['<END>'])
         
         # pad short caption with the special null token '<NULL>' to make it fixed-size vector
