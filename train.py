@@ -9,7 +9,6 @@ FLAGS = flags.FLAGS
 """Model's parameters"""
 flags.DEFINE_integer('image_feature_size', 196, 'Multiplication of width and height of image feature\'s dimension, e.g 14x14=196 in the original paper.')
 flags.DEFINE_integer('image_feature_depth', 1024, 'Depth dimension of image feature, e.g 512 if you extract features at conv-5 of VGG-16 model.')
-flags.DEFINE_integer('lstm_layers', 1, 'Number of LSTM layers.')
 flags.DEFINE_integer('lstm_hidden_size', 1536, 'Hidden layer size for LSTM cell.')
 flags.DEFINE_integer('time_steps', 31, 'Number of time steps to be iterating through.')
 flags.DEFINE_integer('embed_dim', 512, 'Embedding space size for embedding tokens.')
