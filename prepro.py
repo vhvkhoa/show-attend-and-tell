@@ -1,4 +1,3 @@
-from scipy import ndimage
 from collections import Counter
 from core.vggnet import Vgg19
 import torch
@@ -8,20 +7,41 @@ from core.utils import *
 from feature_extractor import FeatureExtractor
 from feature_extractor import CocoDataset
 
-import tensorflow as tf
+from tensorflow import flags
 import numpy as np
 import pandas as pd
 import os
 import json
 from tqdm import tqdm
 
+"""Parameters for pre-processing"""
+FLAGS = flags.FLAGS
 
-def _process_caption_data(split, caption_file=None, image_dir=None, max_length=None):
-    if split == 'test' or split == 'val':
-	if split == 'val':
-	    with open(caption_file, 'r') as f:
-	        caption_object = json.load(f)
-		caption_object['type'] = 'caption'
+flags.DEFINE_string('phases', 'train,val,test', 'Phases in which you want to pre-process the dataset. '+
+                                                'Phases should be seperated by commas and no space. '+
+                                                'Images of phase named <phase> should be placed in image/<phase>. '+
+                                                'Default is pre-process all splits of COCO-dataset.')
+
+flags.DEFINE_integer('batch_size', 128,         'Batch size to be used for extracting features from images.')
+
+flags.DEFINE_integer('max_length', 30,          'Max length, only be used to pre-process captions in training split of dataset. '+
+                                                'Captions have more words than max_length will be removed.')
+
+flags.DEFINE_integer('word_count_threshold', 1, 'Words occur less than word_count_threshold times in the dataset '+
+                                                '(only apply for training set) will be removed from vocabulary '+
+                                                'and replaced by <UNK> token in the captions.')
+
+flags.DEFINE_integer('vocab_size', 0,           'Size of vocabulary. '+
+                                                'Vocabulary is made of vocab_size most frequent words in the dataset. '+
+                                                'Leave it to default value means not using it.')
+
+
+def _process_caption_data(phase, caption_file=None, image_dir=None, max_length=None):
+    if phase == 'test' or phase == 'val':
+        if phase == 'val':
+            with open(caption_file, 'r') as f:
+                caption_object = json.load(f)
+            caption_object['type'] = 'caption'
 
         file_paths = []
         for dirpath, dirnames, filenames in os.walk(image_dir):
@@ -58,12 +78,12 @@ def _process_caption_data(split, caption_file=None, image_dir=None, max_length=N
     
     del_idx = []
     for i, caption in enumerate(caption_data['caption']):
-        caption = caption.replace('.','').replace(',','').replace("'","").replace('"','')
-        caption = caption.replace('&','and').replace('(','').replace(")","").replace('-',' ')
-        caption = " ".join(caption.split())  # replace multiple spaces
+        caption = caption.replace('.','').replace(',','').replace("'",'').replace('"','')
+        caption = caption.replace('&','and').replace('(','').replace(')','').replace('-',' ')
+        caption = ' '.join(caption.split())  # replace multiple spaces
         
         caption_data.set_value(i, 'caption', caption.lower())
-        if max_length != None and len(caption.split(" ")) > max_length:
+        if max_length != None and len(caption.split(' ')) > max_length:
             del_idx.append(i)
     
     # delete captions if size is larger than max_length
@@ -74,22 +94,27 @@ def _process_caption_data(split, caption_file=None, image_dir=None, max_length=N
     return caption_data
 
 
-def _build_vocab(annotations, threshold=1, max_size=None):
+def _build_vocab(annotations, threshold=1, vocab_size=0):
     counter = Counter()
     max_len = 0
     for i, caption in enumerate(annotations['caption']):
         words = caption.split(' ') # caption contrains only lower-case words
         for w in words:
-            counter[w] +=1
+            counter[w] += 1
         
         if len(caption.split(' ')) > max_len:
             max_len = len(caption.split(' '))
 
-    vocab = [word for word in counter if counter[word] >= threshold]
+    if vocab_size > 0:
+        top_n_counter = [w for w, n in counter.most_common(vocab_size)]
+        vocab = [word for word in counter if counter[word] >= threshold and word in top_n_counter]
+    else:
+        vocab = [word for word in counter if counter[word] >= threshold]
+
     print ('Filtered %d words to %d words with word count threshold %d.' % (len(counter), len(vocab), threshold))
 
-    word_to_idx = {u'<NULL>': 0, u'<START>': 1, u'<END>': 2}
-    idx = 3
+    word_to_idx = {u'<NULL>': 0, u'<START>': 1, u'<END>': 2, u'<UNK>': 3}
+    idx = len(word_to_idx)
     for word in vocab:
         word_to_idx[word] = idx
         idx += 1
@@ -110,7 +135,7 @@ def _build_caption_vector(annotations, word_to_idx, max_length=15):
             if word in word_to_idx:
                 cap_vec.append(word_to_idx[word])
             else:
-                cap_vec.append(word_to_idx['NULL'])
+                cap_vec.append(word_to_idx['UNK'])
         cap_vec.append(word_to_idx['<END>'])
         
         # pad short caption with the special null token '<NULL>' to make it fixed-size vector
@@ -122,41 +147,40 @@ def _build_caption_vector(annotations, word_to_idx, max_length=15):
     print "Finished building caption vectors"
     return captions
 
-
 def main():
-    # splits to be processed.
-    splits = ['train', 'val', 'test']
-    # batch size for extracting feature vectors from vggnet.
-    batch_size = 100
+    # phases to be processed.
+    phases = FLAGS.phases.split(',')
+    # batch size for extracting feature vectors.
+    batch_size = FLAGS.batch_size 
     # maximum length of caption(number of word). if caption is longer than max_length, deleted.  
-    max_length = 30
+    max_length = FLAGS.max_length
     # if word occurs less than word_count_threshold in training dataset, the word index is special unknown token.
-    word_count_threshold = 1
+    word_count_threshold = FLAGS.word_count_threshold
+    vocab_size = FLAGS.vocab_size
     
     datasets = {}
-    for split in splits:
-        datasets[split] = _process_caption_data(split,
-                                                caption_file='data/annotations/captions_%s2017.json' % split,
-                                                image_dir='image/%s/' % split,
+    for phase in phases:
+        datasets[phase] = _process_caption_data(phase,
+                                                caption_file='data/annotations/captions_%s2017.json' % phase,
+                                                image_dir='image/%s/' % phase,
                                                 max_length=max_length)
-        save_pickle(datasets[split], 'data/%s/%s.annotations.pkl' % (split, split))
+        save_pickle(datasets[phase], 'data/%s/%s.annotations.pkl' % (phase, phase))
 
     print 'Finished processing caption data'
 
     annotations = load_pickle('./data/train/train.annotations.pkl')
 
-    word_to_idx = _build_vocab(annotations=annotations, threshold=word_count_threshold)
+    word_to_idx = _build_vocab(annotations=annotations, threshold=word_count_threshold, vocab_size=vocab_size)
     save_pickle(word_to_idx, './data/train/word_to_idx.pkl')
     
     captions = _build_caption_vector(annotations=annotations, word_to_idx=word_to_idx, max_length=max_length)
     save_pickle(captions, './data/train/train.captions.pkl')
 
-    # extract conv5_3 feature vectors
     feature_extractor = FeatureExtractor(model_name='resnet101', layer=3)
-    for split in splits:
-        if not os.path.isdir('./data/%s/feats/' % (split)):
-            os.mkdir('./data/%s/feats/' % (split))
-        anno_path = './data/%s/%s.annotations.pkl' % (split, split)
+    for phase in phases:
+        if not os.path.isdir('./data/%s/feats/' % (phase)):
+            os.mkdir('./data/%s/feats/' % (phase))
+        anno_path = './data/%s/%s.annotations.pkl' % (phase, phase)
         annotations = load_pickle(anno_path)
         file_names = list(annotations['file_name'].unique())
         dataset = CocoDataset(file_names=file_names)
@@ -166,7 +190,7 @@ def main():
             feats = feature_extractor(batch_images).data.cpu().numpy()
             feats = feats.reshape(-1, feats.shape[1]*feats.shape[2], feats.shape[-1])
             for j in range(len(feats)):
-                np.save('./data/%s/feats/%d.npy' % (split, batch_ids[j]), feats[j])
+                np.save('./data/%s/feats/%d.npy' % (phase, batch_ids[j]), feats[j])
 
 if __name__ == "__main__":
     main()

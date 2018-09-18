@@ -67,26 +67,9 @@ class CaptioningSolver(object):
         return batch_feats
 
     def train(self, beam_size=1):
-        logger = logging.getLogger()
-        logger.setLevel(logging.INFO)
+        # In addition to printing out INFOs to console, all INFOs would also be saved to file in log_path folder to keep track.
+        define_logger(logging_level='info', log_file=os.path.join(self.log_path, 'train_%d.log' % self.start_from))
 
-        # Set logging to console
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter("[%(levelname)s]|%(asctime)s| - %(message)s")
-        handler.setFormatter(formatter)
-        
-        logger.addHandler(handler)
-        
-        # Set logging to file
-        handler = logging.FileHandler('train.log')
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter("[%(levelname)s]|%(asctime)s| - %(message)s")
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-
-        # train/val dataset
         # Changed this because I keep less features than captions, see prepro
         n_examples = self.data['n_examples']
         n_iters_per_epoch = int(np.ceil(float(n_examples)/self.batch_size))
@@ -112,13 +95,10 @@ class CaptioningSolver(object):
             train_op = optimizer.apply_gradients(grads_and_vars=grads_and_vars, global_step=global_step)
 
         # summary op
-        # tf.scalar_summary('batch_loss', loss)
         tf.summary.scalar('batch_loss', loss)
         for var in tf.trainable_variables():
-            #tf.histogram_summary(var.op.name, var)
             tf.summary.histogram(var.op.name, var)
         for grad, var in grads_and_vars:
-            #tf.histogram_summary(var.op.name+'/gradient', grad)
             tf.summary.histogram(var.op.name+'/gradient', grad)
 
         summary_op = tf.summary.merge_all()

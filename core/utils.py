@@ -120,3 +120,26 @@ def evaluate(data_path='./data', split='val', get_scores=False):
 
     if get_scores:
         return final_scores
+
+def define_logger(logging_level='info', log_file=None):
+        logging_level = logging.INFO if logging_level.lower() == 'info' \
+                   else logging.WARNING if logging_level.lower() == 'warning' \
+                   else logging.DEBUG
+
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+
+        # Set logging to console
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter("[%(levelname)s]|%(asctime)s| - %(message)s")
+        handler.setFormatter(formatter)
+        
+        logger.addHandler(handler)
+        
+        # Set logging to file
+        handler = logging.FileHandler('train.log')
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter("[%(levelname)s]|%(asctime)s| - %(message)s")
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
