@@ -106,7 +106,7 @@ class CaptioningSolver(object):
         # Summary for every metric
         metrics = ['Bleu_%d' % (i+1) for i in range(4)] + ['METEOR', 'ROUGE_L', 'CIDEr']
         score_placeholders = [tf.placeholder(tf.float32, [], metric) for metric in metrics]
-        score_summary_op = tf.summary.merge([tf.summary.scalar('%s Score' % metric, score_ph) 
+        score_summary_op = tf.summary.merge([tf.summary.scalar('%s_score' % metric, score_ph) 
                                                 for score_ph, metric in zip(score_placeholders, metrics)])
 
 
