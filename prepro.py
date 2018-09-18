@@ -1,5 +1,4 @@
 from collections import Counter
-from core.vggnet import Vgg19
 import torch
 from torchvision import datasets
 from torchvision import transforms
