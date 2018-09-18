@@ -137,7 +137,7 @@ class CaptioningSolver(object):
             max_bleu_score = -1
             curr_loss = 0
             start_t = time.time()
-
+            max_score = 1000.
             for e in range(self.n_epochs):
                 rand_idxs = np.random.permutation(n_examples)
                 captions = captions[rand_idxs]
