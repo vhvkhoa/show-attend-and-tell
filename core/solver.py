@@ -177,7 +177,7 @@ class CaptioningSolver(object):
                         summary_writer.add_summary(score_summary, gs+1)
 
                         # save model's parameters
-                        saver.save(sess, os.path.join(self.model_path, 'checkpoint'), global_step=gs+1)
+                        saver.save(sess, os.path.join(self.checkpoint_dir, 'checkpoint'), global_step=gs+1)
                         logging.info("model-%s saved." %(gs+1))
 
                         if max_score < scores[self.metric]:
