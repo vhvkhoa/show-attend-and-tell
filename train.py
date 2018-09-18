@@ -29,6 +29,7 @@ flags.DEFINE_string('metric', 'CIDEr', 'Metric being based on to choose best mod
 flags.DEFINE_string('pretrained_model', '', 'Path to a pretrained model to initiate weights from.') 
 flags.DEFINE_integer('start_from', 0, 'Step number to start model from, this parameter helps to continue logging in tensorboard from the previous stopped training phase.') 
 flags.DEFINE_string('checkpoint_dir', 'checkpoint/', 'Path to directory where checkpoints saved every eval_steps.')
+flags.DEFINE_string('log_path', 'log/', 'Path to directory where logs saved during the training process. You can use tensorboard to visualize logging informations and re-read IFO printed on the console in .log files.')
 
 def main():
     # load train dataset
