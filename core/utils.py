@@ -138,7 +138,7 @@ def define_logger(logging_level='info', log_file=None):
         logger.addHandler(handler)
         
         # Set logging to file
-        handler = logging.FileHandler('train.log')
+        handler = logging.FileHandler(log_file)
         handler.setLevel(logging.INFO)
         formatter = logging.Formatter("[%(levelname)s]|%(asctime)s| - %(message)s")
         handler.setFormatter(formatter)
