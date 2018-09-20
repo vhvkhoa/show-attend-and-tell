@@ -138,6 +138,20 @@ class CaptioningSolver(object):
             curr_loss = 0
             start_t = time.time()
             max_score = 1000.
+            def eval_and_log(current_epoch, current_gs):
+                self.test(self.val_data, split='val', model_sampler_ops=model_sampler_ops, sess=sess)
+
+                scores = evaluate(data_path='./data', split='val', get_scores=True)
+                write_bleu(scores=scores, path=self.checkpoint_dir, epoch=current_epoch, iteration=current_gs+1)
+                score_summary = sess.run(score_summary_op, feed_dict={score_ph: scores[metric] for score_ph, metric in zip(score_placeholders, metrics)})
+                summary_writer.add_summary(score_summary, current_gs+1)
+
+                # save model's parameters
+                saver.save(sess, os.path.join(self.checkpoint_dir, 'checkpoint-%d' % (current_gs+1)))
+                logging.info("checkpoint-%d saved." %(current_gs+1))
+
+                return scores
+
             for e in range(self.n_epochs):
                 rand_idxs = np.random.permutation(n_examples)
                 captions = captions[rand_idxs]
@@ -169,20 +183,14 @@ class CaptioningSolver(object):
 
                     # print out BLEU scores and file write
                     if (gs+1) % self.eval_every == 0:
-			self.test(self.val_data, split='val', model_sampler_ops=model_sampler_ops, sess=sess)
-
-                        scores = evaluate(data_path='./data', split='val', get_scores=True)
-                        write_bleu(scores=scores, path=self.checkpoint_dir, epoch=e, iteration=gs+1)
-                        score_summary = sess.run(score_summary_op, feed_dict={score_ph: scores[metric] for score_ph, metric in zip(score_placeholders, metrics)})
-                        summary_writer.add_summary(score_summary, gs+1)
-
-                        # save model's parameters
-                        saver.save(sess, os.path.join(self.checkpoint_dir, 'checkpoint'), global_step=gs+1)
-                        logging.info("model-%s saved." %(gs+1))
+                        scores = eval_and_log(sess, model_sampler_ops)
 
                         if max_score < scores[self.metric]:
                             best_ckpt_saver.save(sess, os.path.join(self.checkpoint_dir, 'best_model.ckpt'))
                             max_score = scores[self.metric]
+
+                # eval at the end of epoch to retrain if needed
+                eval_and_log(sess, model_sampler_ops)
 
                 logging.info("Previous epoch loss: ", prev_loss)
                 logging.info("Current epoch loss: ", curr_loss)

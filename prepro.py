@@ -34,6 +34,19 @@ flags.DEFINE_integer('vocab_size', 0,           'Size of vocabulary. '+
                                                 'Vocabulary is made of vocab_size most frequent words in the dataset. '+
                                                 'Leave it to default value means not using it.')
 
+flags.DEFINE_string('model_name', 'resnet', 'Model used to extract features of images.'+
+                                                'It should be vgg or resnet.')
+
+flags.DEFINE_string('model_num_layers', '101',  'Number of layers for model\'s architecture.'+
+                                                'If model_name is vgg, this variable can take values of 16 or 19.'+
+                                                'If model_name is resnet, this variable can take values of 50, 101 or 152.')
+
+flags.DEFINE_boolean('use_tf', False, 'Whether to use Tensorflow slim model to extract features of images or use pytorch.'+
+                                                'Using Pytorch will be faster but it will keep you from finetuning the extracting model.'+
+                                                'Default is set to use Pytorch models.')
+
+flags.DEFINE_string('model_ckpt', '', 'Model checkpoint to load model\'s weights to extract images.'+
+                                                'Only use this variable when you use tensorflow model.')
 
 def _process_caption_data(phase, caption_file=None, image_dir=None, max_length=None):
     if phase == 'test' or phase == 'val':
@@ -156,6 +169,8 @@ def main():
     # if word occurs less than word_count_threshold in training dataset, the word index is special unknown token.
     word_count_threshold = FLAGS.word_count_threshold
     vocab_size = FLAGS.vocab_size
+
+    model_name = FLAGS.model_name + FLAGS.model_num_layers
     
     datasets = {}
     for phase in phases:
@@ -175,21 +190,44 @@ def main():
     captions = _build_caption_vector(annotations=annotations, word_to_idx=word_to_idx, max_length=max_length)
     save_pickle(captions, './data/train/train.captions.pkl')
 
-    feature_extractor = FeatureExtractor(model_name='resnet101', layer=3)
+    if FLAGS.use_tf:
+        tf_datasets = TensorFlowCocoDataset(phases)
+        feature_extractor = TensorFlowFeatureExtracter(FLAGS.model_name, FLAGS.model_num_layers, FLAGS.model_ckpt)
+    else:
+        feature_extractor = FeatureExtractor(model_name=model_name, layer=3)
+
     for phase in phases:
         if not os.path.isdir('./data/%s/feats/' % (phase)):
             os.mkdir('./data/%s/feats/' % (phase))
-        anno_path = './data/%s/%s.annotations.pkl' % (phase, phase)
-        annotations = load_pickle(anno_path)
-        file_names = list(annotations['file_name'].unique())
-        dataset = CocoDataset(file_names=file_names)
-        data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=4)
 
-        for i, (batch_ids, batch_images) in enumerate(tqdm(data_loader)):
-            feats = feature_extractor(batch_images).data.cpu().numpy()
-            feats = feats.reshape(-1, feats.shape[1]*feats.shape[2], feats.shape[-1])
-            for j in range(len(feats)):
-                np.save('./data/%s/feats/%d.npy' % (phase, batch_ids[j]), feats[j])
+        if FLAGS.use_tf:
+            datasets_iter = tf_datasets.get_iter()
+            features = feature_extractor.get_features(datasets_iter)
+            with tf.Session() as sess:
+                saver = tf.train.Saver()
+                saver.restore(sess, model_ckpt)
+                    phase_init_op = datasets_iter.make_initializer(tf_datasets[phase][0])
+                    image_ids = tf_datasets[phase][1]
+                    sess.run(phase_init_op)
+                    for i in tqdm(range(len(image_ids) // batch_size + 1)):
+                            feature_vals = sess.run(features)
+                            feature_vals = feature_vals.reshape(-1, feature_vals.shape[1]*feature_vals.shape[2], feature_vals.shape[-1])
+                            for j in range(len(feature_vals)):
+                                np.save('./data/%s/feats/%d.npy' % (split, image_ids[i*batch_size+j]), feature_vals[j])
+
+        else:
+            anno_path = './data/%s/%s.annotations.pkl' % (phase, phase)
+            annotations = load_pickle(anno_path)
+            file_names = list(annotations['file_name'].unique())
+            dataset = CocoDataset(file_names=file_names)
+            data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=4)
+
+            for i, (batch_ids, batch_images) in enumerate(tqdm(data_loader)):
+                feats = feature_extractor(batch_images).data.cpu().numpy()
+                feats = feats.reshape(-1, feats.shape[1]*feats.shape[2], feats.shape[-1])
+                for j in range(len(feats)):
+                    np.save('./data/%s/feats/%d.npy' % (phase, batch_ids[j]), feats[j])
+        
 
 if __name__ == "__main__":
     main()
