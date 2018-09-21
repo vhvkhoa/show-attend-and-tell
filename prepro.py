@@ -206,14 +206,14 @@ def main():
             with tf.Session() as sess:
                 saver = tf.train.Saver()
                 saver.restore(sess, model_ckpt)
-                    phase_init_op = datasets_iter.make_initializer(tf_datasets[phase][0])
-                    image_ids = tf_datasets[phase][1]
-                    sess.run(phase_init_op)
-                    for i in tqdm(range(len(image_ids) // batch_size + 1)):
-                            feature_vals = sess.run(features)
-                            feature_vals = feature_vals.reshape(-1, feature_vals.shape[1]*feature_vals.shape[2], feature_vals.shape[-1])
-                            for j in range(len(feature_vals)):
-                                np.save('./data/%s/feats/%d.npy' % (split, image_ids[i*batch_size+j]), feature_vals[j])
+                phase_init_op = datasets_iter.make_initializer(tf_datasets[phase][0])
+                image_ids = tf_datasets[phase][1]
+                sess.run(phase_init_op)
+                for i in tqdm(range(len(image_ids) // batch_size + 1)):
+                        feature_vals = sess.run(features)
+                        feature_vals = feature_vals.reshape(-1, feature_vals.shape[1]*feature_vals.shape[2], feature_vals.shape[-1])
+                        for j in range(len(feature_vals)):
+                            np.save('./data/%s/feats/%d.npy' % (split, image_ids[i*batch_size+j]), feature_vals[j])
 
         else:
             anno_path = './data/%s/%s.annotations.pkl' % (phase, phase)
