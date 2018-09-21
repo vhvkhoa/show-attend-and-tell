@@ -85,8 +85,8 @@ class TensorFlowCocoDataset(object):
             dataset = dataset.map(_parse_fn).batch(batch_size)
             self.datasets[phase] = [dataset, image_ids]
 
-        self.iterator = tf.data.Iterator.from_structure(self.datasets[datasets.keys()[0]][0].output_types, 
-                                                        self.datasets[datasets.keys()[0]][0].output_shapes)
+        self.iterator = tf.data.Iterator.from_structure(self.datasets[self.datasets.keys()[0]][0].output_types, 
+                                                        self.datasets[self.datasets.keys()[0]][0].output_shapes)
 
     def get_iter(self):
         return self.iterator
