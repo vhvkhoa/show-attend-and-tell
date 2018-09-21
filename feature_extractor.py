@@ -87,7 +87,7 @@ class TensorFlowFeatureExtracter(object):
     def __init__(self, model_name, model_num_layers, model_ckpt):
         # If resnet 101: use unit 22
         # If resnet 152: use unit 35
-        unit = 22 if model_num_layers == '101' else 35 if model_num_layers == '152'
+        unit = 22 if model_num_layers == '101' else 35 if model_num_layers == '152' else 22
         model_name = '%s' % (model_name) + '_v2_%s' if model_name == 'resnet' else '%s' if model_name == 'vgg'
         model_name = model_name % (model_num_layers)
         layer_name = model_name + '/block%d/unit_%d/bottleneck_v%d' % (3, unit, 2)
