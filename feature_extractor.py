@@ -99,11 +99,10 @@ class TensorFlowFeatureExtracter(object):
         model_name = '%s' % (model_name) + '_v2_%s' if model_name == 'resnet' else '%s'
         model_name = model_name % (model_num_layers)
         layer_name = model_name + '/block%d/unit_%d/bottleneck_v%d' % (3, unit, 2)
-        image_preprocessing_fn = preprocessing_factory.get_preprocessing('inception', is_training=False)
-        network_fn = nets_factory.get_network_fn(name=model_name, num_classes=None, is_training=False)
+        self.network_fn = nets_factory.get_network_fn(name=model_name, num_classes=None, is_training=False)
 
     def get_features(self, dataset_iterator): 
         dataset_batch = dataset_iterator.get_next()
-        _, end_points = network_fn(dataset_batch)
+        _, end_points = self.network_fn(dataset_batch)
         features = end_points[layer_name]
         return features
