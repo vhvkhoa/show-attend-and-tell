@@ -1,5 +1,8 @@
 import torch
 import tensorflow as tf
+sys.path.append('../models/research/slim')
+from nets import nets_factory
+from preprocessing import preprocessing_factory
 from PIL import Image
 from torchvision import models
 from torchvision import transforms
