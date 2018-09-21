@@ -98,11 +98,11 @@ class TensorFlowFeatureExtracter(object):
         unit = 22 if model_num_layers == '101' else 35 if model_num_layers == '152' else 22
         model_name = '%s' % (model_name) + '_v2_%s' if model_name == 'resnet' else '%s'
         model_name = model_name % (model_num_layers)
-        layer_name = model_name + '/block%d/unit_%d/bottleneck_v%d' % (3, unit, 2)
+        self.layer_name = model_name + '/block%d/unit_%d/bottleneck_v%d' % (3, unit, 2)
         self.network_fn = nets_factory.get_network_fn(name=model_name, num_classes=None, is_training=False)
 
     def get_features(self, dataset_iterator): 
         dataset_batch = dataset_iterator.get_next()
         _, end_points = self.network_fn(dataset_batch)
-        features = end_points[layer_name]
+        features = end_points[self.layer_name]
         return features
