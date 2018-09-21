@@ -3,8 +3,7 @@ import torch
 from torchvision import datasets
 from torchvision import transforms
 from core.utils import *
-from feature_extractor import FeatureExtractor
-from feature_extractor import CocoDataset
+from feature_extractor import *
 
 from tensorflow import flags
 import numpy as np
