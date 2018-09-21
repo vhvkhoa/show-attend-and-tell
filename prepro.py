@@ -204,7 +204,7 @@ def main():
             features = feature_extractor.get_features(datasets_iter)
             with tf.Session() as sess:
                 saver = tf.train.Saver()
-                saver.restore(sess, model_ckpt)
+                saver.restore(sess, FLAGS.model_ckpt)
                 phase_init_op = datasets_iter.make_initializer(tf_datasets[phase][0])
                 image_ids = tf_datasets[phase][1]
                 sess.run(phase_init_op)
