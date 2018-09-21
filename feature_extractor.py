@@ -1,3 +1,4 @@
+import sys
 import torch
 import tensorflow as tf
 sys.path.append('../models/research/slim')
