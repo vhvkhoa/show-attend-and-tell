@@ -65,7 +65,9 @@ class FeatureExtractor(object):
 
 class TensorFlowCocoDataset(object):
     def __init__(self, phases):
-        def _parse_fn(filename):
+        image_preprocessing_fn = preprocessing_factory.get_preprocessing('inception', is_training=False)
+
+        def _parse_fn(filename, ):
             image_string = tf.read_file(filename)
             image_decoded = tf.image.decode_image(image_string, channels=3)
             image_decoded.set_shape([None, None, 3])
