@@ -64,7 +64,7 @@ class FeatureExtractor(object):
         return features.permute(0, 2, 3, 1)
 
 class TensorFlowCocoDataset(object):
-    def __init__(self, phases):
+    def __init__(self, phases, batch_size):
         image_preprocessing_fn = preprocessing_factory.get_preprocessing('inception', is_training=False)
 
         def _parse_fn(filename, ):

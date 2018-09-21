@@ -190,7 +190,7 @@ def main():
     save_pickle(captions, './data/train/train.captions.pkl')
 
     if FLAGS.use_tf:
-        tf_datasets = TensorFlowCocoDataset(phases)
+        tf_datasets = TensorFlowCocoDataset(phases, batch_size)
         feature_extractor = TensorFlowFeatureExtracter(FLAGS.model_name, FLAGS.model_num_layers, FLAGS.model_ckpt)
     else:
         feature_extractor = FeatureExtractor(model_name=model_name, layer=3)
