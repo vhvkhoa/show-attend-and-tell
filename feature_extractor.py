@@ -3,6 +3,7 @@ from PIL import Image
 from torchvision import models
 from torchvision import transforms
 from torch.utils.data.dataset import Dataset
+from core.utils import load_pickle
 
 class CocoDataset(Dataset):
     def __init__(self, file_names):
