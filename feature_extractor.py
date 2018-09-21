@@ -90,6 +90,9 @@ class TensorFlowCocoDataset(object):
 
     def get_iter(self):
         return self.iterator
+    
+    def __getitem__(self, phase):
+        return self.datasets[phase]
 
 class TensorFlowFeatureExtracter(object):
     def __init__(self, model_name, model_num_layers, model_ckpt):
