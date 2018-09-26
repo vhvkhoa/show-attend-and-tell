@@ -409,22 +409,28 @@ class BeamSearchHelper(object):
         next_input = init_input
 
         # Set up the beam search tracking state
-        cand_symbols = tf.fill([self.batch_size, 0], tf.constant(self.stop_token, dtype=tf.int32))
+        cand_symbols = tf.TensorArray(tf.int32, dynamic_size=True) # final size should be self.max_len
         cand_logprobs = tf.ones((self.batch_size,), dtype=tf.float32) * -float('inf')
         cand_finished = tf.zeros((self.batch_size,), dtype=tf.bool)
 
-        cand_alphas = tf.reshape(alpha, [-1, 1, alpha.shape[-1]])
-        cand_betas = tf.reshape(beta, [-1, 1])
+        cand_alphas = tf.TensorArray(tf.float32, dynamic_size=True) # final size should be self.max_len + 1
 
-        beam_alphas = tf.reshape(tf.tile(tf.expand_dims(alpha, 1), 
-                                        [1, self.beam_size, 1]), 
-                                [-1, 1, alpha.shape[-1]])
-        beam_betas = tf.reshape(tf.tile(beta, [1, self.beam_size]),
-                                [-1, 1])
+        cand_alphas = cand_alphas.write(0, alpha)
+        
+        cand_betas = tf.TensorArray(tf.float32, dynamic_size=True) # final size should be self.max_len + 1
+        cand_betas = cand_betas.write(0, beta)
+
+        beam_alpha = tf.reshape(tf.tile(tf.expand_dims(alpha, 1), [1, self.beam_size, 1]), [-1, alpha.shape[-1]])
+        beam_alphas = tf.TensorArray(tf.float32, True) # final size should be self.max_len + 1
+        beam_alphas = beam_alphas.write(0, beam_alpha) 
+
+        beam_beta = tf.reshape(tf.tile(beta, [1, self.beam_size]), [-1])
+        beam_betas = tf.TensorArray(tf.float32, True) # final size should be self.max_len + 1
+        beam_betas = beam_betas.write(0, beam_beta)
 
         first_in_beam_mask = tf.equal(tf.range(self.batch_size_times_beam_size) % self.beam_size, 0)
 
-        beam_symbols = tf.fill([self.batch_size_times_beam_size, 0], tf.constant(self.stop_token, dtype=tf.int32))
+        beam_symbols = tf.TensorArray(tf.int32, dynamic_size=True) # final size should be self.max_len
         beam_context = tf.reshape(context, [-1, context.shape[-1]])
 
         beam_logprobs = tf.where(
@@ -437,15 +443,6 @@ class BeamSearchHelper(object):
         # Note that the last dimension (initialized to zero) is not a loop invariant,
         # so we need to clear it. TODO(nikita): is there a public API for clearing shape
         # inference so that _shape is not necessary?
-        cand_symbols._shape = tf.TensorShape((self.inferred_batch_size, None))
-        cand_logprobs._shape = tf.TensorShape((self.inferred_batch_size,))
-        cand_finished._shape = tf.TensorShape((self.inferred_batch_size,))
-        beam_symbols._shape = tf.TensorShape((self.inferred_batch_size_times_beam_size, None))
-        beam_logprobs._shape = tf.TensorShape((self.inferred_batch_size_times_beam_size,))
-        cand_alphas._shape = tf.TensorShape((self.inferred_batch_size, None, cand_alphas.shape[-1]))
-        cand_betas._shape = tf.TensorShape((self.inferred_batch_size, None))
-        beam_alphas._shape = tf.TensorShape((self.inferred_batch_size_times_beam_size, None, beam_alphas.shape[-1]))
-        beam_betas._shape = tf.TensorShape((self.inferred_batch_size_times_beam_size, None))
         next_loop_state = (
             cand_symbols,
             cand_logprobs,
@@ -467,15 +464,15 @@ class BeamSearchHelper(object):
 
     def beam_loop(self, time, cell_output, cell_state, loop_state):
         (
-            past_cand_symbols, # [batch_size, time-1]
+            past_cand_symbols, # [batch_size, time-1]                               ******
             past_cand_logprobs,# [batch_size]
             past_cand_finished,# [batch_size]
-            past_beam_symbols, # [batch_size*beam_size, time-1], right-aligned
+            past_beam_symbols, # [batch_size*beam_size, time-1], right-aligned      ******
             past_beam_logprobs,# [batch_size*beam_size]
-            past_cand_alphas,  # [batch_size, time, ...]
-            past_cand_betas,   # [batch_size, time]
-            past_beam_alphas,  # [batch_size, ]
-            past_beam_betas,
+            past_cand_alphas,  # [batch_size, time, ...]                            ******
+            past_cand_betas,   # [batch_size, time]                                 ******
+            past_beam_alphas,  # [batch_size, ]                                     ******
+            past_beam_betas,   #                                                    ******
             past_beam_context,
                 ) = loop_state
 
@@ -486,7 +483,7 @@ class BeamSearchHelper(object):
         # 1. Get scores for all candidate sequences
         past_symbols = tf.cond(tf.equal(time, 1), 
                                 lambda: tf.fill(dims=[self.batch_size_times_beam_size], value=self.start_token),
-                                lambda: past_beam_symbols[:, -1])
+                                lambda: past_beam_symbols.read(time-1))
         logprobs = self.outputs_to_score_fn(self.model, past_symbols, cell_output, past_beam_context, self.beam_size)
 
         try:
@@ -516,8 +513,16 @@ class BeamSearchHelper(object):
         symbols = indices % num_classes # [batch_size, self.beam_size]
         parent_refs = indices // num_classes # [batch_size, self.beam_size]
 
-        symbols_history = flat_batch_gather(past_beam_symbols, parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
-        beam_symbols = tf.concat([symbols_history, tf.reshape(symbols, [-1, 1])], 1)
+        past_cand_symbols_tensor = tf.transpose(past_cand_symbols.stack(), [1, 0])
+        past_beam_symbols_tensor = tf.transpose(past_beam_symbols.stack(), [1, 0])
+        past_beam_alphas_tensor = tf.transpose(past_beam_alphas.stack(), [1, 0, 2])
+        past_beam_betas_tensor = tf.transpose(past_beam_betas.stack(), [1, 0])
+        past_cand_alphas_tensor = tf.transpose(past_cand_alphas.stack(), [1, 0, 2])
+        past_cand_betas_tensor = tf.transpose(past_cand_betas.stack(), [1, 0])
+
+        symbols_history = flat_batch_gather(past_beam_symbols_tensor, parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
+        beam_symbols = tf.concat([symbols_history, tf.reshape(symbols, [-1, 1])], 1) 
+        beam_symbols = past_beam_symbols.unstack(tf.transpose(beam_symbols, [1, 0]))
 
         cell_output = tf.reshape(cell_output, [-1, cell_output.shape[-1]])
         cell_output = flat_batch_gather(cell_output, parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
@@ -532,18 +537,22 @@ class BeamSearchHelper(object):
                                                                     self.beam_size)
 
         beam_context = context
-        alphas_history = flat_batch_gather(past_beam_alphas, parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
-        betas_history = flat_batch_gather(past_beam_betas, parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
+
+        alphas_history = flat_batch_gather(past_beam_alphas_tensor, parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
+        betas_history = flat_batch_gather(past_beam_betas_tensor, parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
+
         beam_alphas = tf.concat([alphas_history, tf.expand_dims(alpha, 1)], 1)
+        beam_alphas = past_beam_alphas.unstack(tf.transpose(beam_alphas, [1, 0, 2]))
         beam_betas = tf.concat([betas_history, beta], 1)
+        beam_betas = past_beam_betas.unstack(tf.transpose(beam_betas, [1, 0]))
 
         # 3. Update the candidate pool to include entries that just ended with a stop token
         logprobs_done = tf.reshape(logprobs_batched, [-1, self.beam_size, num_classes])[:,:,self.stop_token]
         done_parent_refs = tf.argmax(logprobs_done, 1)
 
-        done_symbols = flat_batch_gather(past_beam_symbols, done_parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
-        done_alphas =  flat_batch_gather(past_beam_alphas, done_parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
-        done_betas =  flat_batch_gather(past_beam_betas, done_parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
+        done_symbols = flat_batch_gather(past_beam_symbols_tensor, done_parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
+        done_alphas =  flat_batch_gather(past_beam_alphas_tensor, done_parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
+        done_betas =  flat_batch_gather(past_beam_betas_tensor, done_parent_refs, batch_size=self.batch_size, options_size=self.beam_size)
 
         logprobs_done_max = tf.reduce_max(logprobs_done, 1)
 
@@ -557,19 +566,22 @@ class BeamSearchHelper(object):
 
         cand_symbols_unpadded = tf.where(cand_mask,
                                 done_symbols,
-                                past_cand_symbols)
+                                past_cand_symbols_tensor)
         cand_alphas_unpadded = tf.where(cand_mask,
                                 done_alphas,
-                                past_cand_alphas)
+                                past_cand_alphas_tensor)
         cand_betas_unpadded = tf.where(cand_mask,
                                 done_betas,
-                                past_cand_betas)
+                                past_cand_betas_tensor)
 
         cand_logprobs = tf.maximum(logprobs_done_max, past_cand_logprobs)
 
         cand_symbols = tf.concat([cand_symbols_unpadded, tf.fill([self.batch_size, 1], self.stop_token)], 1)
-        cand_alphas = tf.concat([cand_alphas_unpadded, tf.fill([self.batch_size, 1, past_cand_alphas.shape[-1]], 0.)], 1)
+        cand_symbols = past_cand_symbols.unstack(tf.transpose(cand_symbols, [1, 0]))
+        cand_alphas = tf.concat([cand_alphas_unpadded, tf.fill([self.batch_size, 1, past_cand_alphas_tensor.shape[-1]], 0.)], 1)
+        cand_alphas = past_cand_alphas.unstack(tf.transpose(cand_alphas, [1, 0, 2]))
         cand_betas = tf.concat([cand_betas_unpadded, tf.fill([self.batch_size, 1], 0.)], 1)
+        cand_betas = past_cand_betas.unstack(tf.transpose(cand_betas, [1, 0]))
         # 4. Check the stopping criteria
 
         if self.max_len is not None:
@@ -595,12 +607,6 @@ class BeamSearchHelper(object):
 
         for tensor in list(nest.flatten(next_input)) + list(nest.flatten(next_cell_state)):
             tensor.set_shape(tf.TensorShape((self.inferred_batch_size, self.beam_size)).concatenate(tensor.get_shape()[2:]))
-
-        for tensor in [cand_symbols, cand_alphas, cand_betas, cand_logprobs, elements_finished]:
-            tensor.set_shape(tf.TensorShape((self.inferred_batch_size,)).concatenate(tensor.get_shape()[1:]))
-
-        for tensor in [beam_symbols, beam_alphas, beam_betas, beam_logprobs]:
-            tensor.set_shape(tf.TensorShape((self.inferred_batch_size_times_beam_size,)).concatenate(tensor.get_shape()[1:]))
 
         next_loop_state = (
             cand_symbols,
