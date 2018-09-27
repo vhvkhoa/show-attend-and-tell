@@ -410,27 +410,29 @@ class BeamSearchHelper(object):
 
         # Set up the beam search tracking state
         cand_symbols = tf.TensorArray(tf.int32, size=self.max_len, clear_after_read=False)
+        cand_symbols = cand_symbols.write(0, tf.fill(dims=[self.batch_size], value=self.start_token))
         cand_logprobs = tf.ones((self.batch_size,), dtype=tf.float32) * -float('inf')
         cand_finished = tf.zeros((self.batch_size,), dtype=tf.bool)
 
-        cand_alphas = tf.TensorArray(tf.float32, size=self.max_len + 1, clear_after_read=False)
+        cand_alphas = tf.TensorArray(tf.float32, size=self.max_len, clear_after_read=False)
 
         cand_alphas = cand_alphas.write(0, alpha)
         
-        cand_betas = tf.TensorArray(tf.float32, size=self.max_len + 1, clear_after_read=False)
+        cand_betas = tf.TensorArray(tf.float32, size=self.max_len, clear_after_read=False)
         cand_betas = cand_betas.write(0, tf.reshape(beta, [-1]))
 
         beam_alpha = tf.reshape(tf.tile(tf.expand_dims(alpha, 1), [1, self.beam_size, 1]), [-1, alpha.shape[-1]])
-        beam_alphas = tf.TensorArray(tf.float32, size=self.max_len + 1, clear_after_read=False)
+        beam_alphas = tf.TensorArray(tf.float32, size=self.max_len, clear_after_read=False)
         beam_alphas = beam_alphas.write(0, beam_alpha) 
 
         beam_beta = tf.reshape(tf.tile(beta, [1, self.beam_size]), [-1])
-        beam_betas = tf.TensorArray(tf.float32, size=self.max_len + 1, clear_after_read=False)
+        beam_betas = tf.TensorArray(tf.float32, size=self.max_len, clear_after_read=False)
         beam_betas = beam_betas.write(0, beam_beta)
 
         first_in_beam_mask = tf.equal(tf.range(self.batch_size_times_beam_size) % self.beam_size, 0)
 
         beam_symbols = tf.TensorArray(tf.int32, size=self.max_len, clear_after_read=False)
+        beam_symbols = beam_symbols.write(0, tf.fill(dims=[self.batch_size_times_beam_size], value=self.start_token))
         beam_context = tf.reshape(context, [-1, context.shape[-1]])
 
         beam_logprobs = tf.where(
@@ -481,9 +483,7 @@ class BeamSearchHelper(object):
         emit_output = cell_output
 
         # 1. Get scores for all candidate sequences
-        past_symbols = tf.cond(tf.equal(time, 1), 
-                                lambda: tf.fill(dims=[self.batch_size_times_beam_size], value=self.start_token),
-                                lambda: past_beam_symbols.read(time-1))
+        past_symbols = past_beam_symbols.read(time-1)
         logprobs = self.outputs_to_score_fn(self.model, past_symbols, cell_output, past_beam_context, self.beam_size)
 
         try:
@@ -586,7 +586,7 @@ class BeamSearchHelper(object):
         # 4. Check the stopping criteria
 
         if self.max_len is not None:
-            elements_finished_clip = (time >= self.max_len)
+            elements_finished_clip = (time >= self.max_len - 1)
 
         if self.score_upper_bound is not None:
             elements_finished_bound = tf.reduce_max(tf.reshape(beam_logprobs, [-1, self.beam_size]), 1) < (cand_logprobs - self.score_upper_bound)
