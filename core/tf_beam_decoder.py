@@ -418,7 +418,7 @@ class BeamSearchHelper(object):
         cand_alphas = cand_alphas.write(0, alpha)
         
         cand_betas = tf.TensorArray(tf.float32, size=self.max_len + 1, clear_after_read=False)
-        cand_betas = cand_betas.write(0, beta)
+        cand_betas = cand_betas.write(0, tf.reshape(beta, [-1]))
 
         beam_alpha = tf.reshape(tf.tile(tf.expand_dims(alpha, 1), [1, self.beam_size, 1]), [-1, alpha.shape[-1]])
         beam_alphas = tf.TensorArray(tf.float32, size=self.max_len + 1, clear_after_read=False)
