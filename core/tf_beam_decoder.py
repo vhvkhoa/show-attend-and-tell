@@ -557,7 +557,7 @@ class BeamSearchHelper(object):
 
         logprobs_done_max = tf.reduce_max(logprobs_done, 1)
 
-        cand_finished = tf.greater(tf.reduce_max(logprobs_done, 1), tf.reshape(beam_logprobs, [-1, self.beam_size])[:, -1])
+        cand_finished = tf.greater(logprobs_done_max, tf.reshape(beam_logprobs, [-1, self.beam_size])[:, -1])
         cand_mask = tf.logical_and(tf.logical_not(tf.logical_xor(cand_finished, past_cand_finished)),
                                     logprobs_done_max > past_cand_logprobs)
         cand_mask = tf.logical_and(tf.logical_and(tf.logical_not(cand_finished), past_cand_finished), cand_mask)
