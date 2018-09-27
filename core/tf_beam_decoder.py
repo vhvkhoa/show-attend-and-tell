@@ -635,7 +635,6 @@ class BeamSearchHelper(object):
         emit_ta, final_state, final_loop_state = tf.nn.raw_rnn(self.cell, self.loop_fn, scope=self.scope)
         cand_symbols, cand_logprobs, cand_finished, beam_symbols, beam_logprobs, cand_alphas, cand_betas, beam_alphas, beam_betas, beam_context = final_loop_state
         cand_symbols = tf.transpose(cand_symbols.stack(), [1, 0])
-        cand_logprobs = tf.transpose(cand_logprobs.stack(), [1, 0])
         cand_alphas = tf.transpose(cand_alphas.stack(), [1, 0, 2])
         cand_betas = tf.transpose(cand_betas.stack(), [1, 0])
         return cand_symbols, cand_logprobs, cand_alphas, cand_betas 
