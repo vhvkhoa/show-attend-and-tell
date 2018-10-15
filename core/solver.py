@@ -208,9 +208,9 @@ class CaptioningSolver(object):
             if attention_visualization:
                 mask, image_files = sample_coco_minibatch(data, 10)
 
-                features_batch = self._read_features(data, data[mask])
-                feed_dict = { self.model.features: features_batch }
-                alps, bts, sam_cap = sess.run([alphas, betas, sampled_captions], feed_dict)  # (N, max_len, L), (N, max_len)
+                features_batch = self._read_features(data, data['image_id'][mask])
+                feed_dict = {self.model.features: features_batch}
+                alps, bts, sam_cap = sess.run([alphas, betas, sampled_captions], feed_dict)
                 decoded = decode_captions(sam_cap, self.model.idx_to_word)
 
                 for n in range(len(decoded)):
