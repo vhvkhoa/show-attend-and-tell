@@ -205,48 +205,48 @@ class CaptioningSolver(object):
                 saver = tf.train.Saver()
                 saver.restore(sess, self.test_checkpoint)
 
-            if attention_visualization:
-                mask, image_files = sample_coco_minibatch(data, 10)
+                if attention_visualization:
+                    mask, image_files = sample_coco_minibatch(data, 10)
 
-                features_batch = self._read_features(data, data['image_id'][mask])
-                feed_dict = {self.model.features: features_batch}
-                alps, bts, sam_cap = sess.run([alphas, betas, sampled_captions], feed_dict)
-                decoded = decode_captions(sam_cap, self.model.idx_to_word)
+                    features_batch = self._read_features(data, data['image_id'][mask])
+                    feed_dict = {self.model.features: features_batch}
+                    alps, bts, sam_cap = sess.run([alphas, betas, sampled_captions], feed_dict)
+                    decoded = decode_captions(sam_cap, self.model.idx_to_word)
 
-                for n in range(len(decoded)):
-                    print "Sampled Caption: %s" %decoded[n]
-                    fig = plt.figure(figsize=(19.2,10.8), dpi=300)
-                    # Plot original image
-                    img = ndimage.imread(image_files[n])
-                    img = imresize(img, (224, 224))
-                    plt.subplot(4, 5, 1)
-                    plt.imshow(img)
-                    plt.axis('off')
+                    for n in range(len(decoded)):
+                        print "Sampled Caption: %s" %decoded[n]
+                        fig = plt.figure(figsize=(19.2,10.8), dpi=300)
+                        # Plot original image
+                        img = ndimage.imread(image_files[n])
+                        img = imresize(img, (224, 224))
+                        plt.subplot(4, 5, 1)
+                        plt.imshow(img)
+                        plt.axis('off')
 
-                    # Plot images with attention weights
-                    words = decoded[n].split(" ")
-                    for t in range(len(words)):
-                        plt.subplot(4, 5, t+2)
-                        plt.text(0, 1, '%s(%.2f)'%(words[t], bts[n,t]) , color='black', backgroundcolor='white', fontsize=8)
-                    plt.imshow(img)
-                    alp_curr = alps[n,t,:].reshape(14,14)
-                    alp_img = skimage.transform.pyramid_expand(alp_curr, upscale=16, sigma=20)
-                    plt.imshow(alp_img, alpha=0.85)
-                    plt.axis('off')
-                    plt.show()
-                    fig.savefig('samples/%d.jpg' % n)
+                        # Plot images with attention weights
+                        words = decoded[n].split(" ")
+                        for t in range(len(words)):
+                            plt.subplot(4, 5, t+2)
+                            plt.text(0, 1, '%s(%.2f)'%(words[t], bts[n,t]) , color='black', backgroundcolor='white', fontsize=8)
+                        plt.imshow(img)
+                        alp_curr = alps[n,t,:].reshape(14,14)
+                        alp_img = skimage.transform.pyramid_expand(alp_curr, upscale=16, sigma=20)
+                        plt.imshow(alp_img, alpha=0.85)
+                        plt.axis('off')
+                        plt.show()
+                        fig.savefig('samples/%d.jpg' % n)
 
-            if save_sampled_captions:
-                all_sam_cap = np.ndarray((data['n_examples'], 35))
-                num_iter = int(np.ceil(float(data['n_examples']) / self.batch_size))
-                for i in tqdm(range(num_iter)):
-                    start = i * self.batch_size
-                    end = min((i+1) * self.batch_size, data['n_examples'])
-                    ids_batch = data['image_id'][start:end]
-                    features_batch = self._read_features(data, ids_batch)
-                    feed_dict = { self.model.features: features_batch}
-                    all_sam_cap[i*self.batch_size:(i+1)*self.batch_size] = sess.run(sampled_captions, feed_dict)
-                all_decoded = decode_captions(all_sam_cap, self.model.idx_to_word)
-                all_decoded = [{"image_id": int(data['image_id'][i]), "caption": caption} 
-                                for i, caption in enumerate(all_decoded)]
-                save_json(all_decoded, "./data/%s/%s.candidate.captions.json" % (split, split))
+                if save_sampled_captions:
+                    all_sam_cap = np.ndarray((data['n_examples'], 35))
+                    num_iter = int(np.ceil(float(data['n_examples']) / self.batch_size))
+                    for i in tqdm(range(num_iter)):
+                        start = i * self.batch_size
+                        end = min((i+1) * self.batch_size, data['n_examples'])
+                        ids_batch = data['image_id'][start:end]
+                        features_batch = self._read_features(data, ids_batch)
+                        feed_dict = { self.model.features: features_batch}
+                        all_sam_cap[i*self.batch_size:(i+1)*self.batch_size] = sess.run(sampled_captions, feed_dict)
+                    all_decoded = decode_captions(all_sam_cap, self.model.idx_to_word)
+                    all_decoded = [{"image_id": int(data['image_id'][i]), "caption": caption} 
+                                    for i, caption in enumerate(all_decoded)]
+                    save_json(all_decoded, "./data/%s/%s.candidate.captions.json" % (split, split))
