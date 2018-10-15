@@ -39,8 +39,7 @@ def main():
                                     ctx2out=FLAGS.ctx2out, alpha_c=1.0, enable_selector=FLAGS.enable_selector, dropout=FLAGS.dropout)
 
     solver = CaptioningSolver(model, batch_size=FLAGS.batch_size, 
-                                    pretrained_model=FLAGS.pretrained_model,
-                                    log_path=FLAGS.log_path)
+                                    pretrained_model=FLAGS.pretrained_model)
 
     solver.test(data, beam_size=3, attention_visualization=True)
 
