@@ -20,6 +20,8 @@ flags.DEFINE_boolean('ctx2out', True, 'Link context features to output.')
 flags.DEFINE_boolean('enable_selector', True, 'Enable selector to determine how much important the image context is at every time step.')
 
 """Other parameters"""
+flags.DEFINE_boolean('att_vis', False, 'Attention visualization, will show attention masks of every word.') 
+flags.DEFINE_string('test_checkpoint', '', 'Path to a checkpoint used to infer.') 
 flags.DEFINE_string('test_checkpoint', '', 'Path to a checkpoint used to infer.') 
 flags.DEFINE_string('word_to_idx_dict', 'word_to_idx.pkl', 'Path to pickle file contained dictionary of words and their corresponding indices.')
 flags.DEFINE_string('split', 'val', 'Split contained extracted features of images you want to caption.\n' + 
