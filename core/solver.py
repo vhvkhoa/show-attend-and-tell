@@ -249,4 +249,5 @@ class CaptioningSolver(object):
                     all_decoded = decode_captions(all_sam_cap, self.model.idx_to_word)
                     all_decoded = [{"image_id": int(data['image_id'][i]), "caption": caption} 
                                     for i, caption in enumerate(all_decoded)]
+                    split = data['split']
                     save_json(all_decoded, "./data/%s/%s.candidate.captions.json" % (split, split))
