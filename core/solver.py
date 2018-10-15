@@ -226,8 +226,8 @@ class CaptioningSolver(object):
                     # Plot images with attention weights
                     words = decoded[n].split(" ")
                     for t in range(len(words)):
-                    plt.subplot(4, 5, t+2)
-                    plt.text(0, 1, '%s(%.2f)'%(words[t], bts[n,t]) , color='black', backgroundcolor='white', fontsize=8)
+                        plt.subplot(4, 5, t+2)
+                        plt.text(0, 1, '%s(%.2f)'%(words[t], bts[n,t]) , color='black', backgroundcolor='white', fontsize=8)
                     plt.imshow(img)
                     alp_curr = alps[n,t,:].reshape(14,14)
                     alp_img = skimage.transform.pyramid_expand(alp_curr, upscale=16, sigma=20)
