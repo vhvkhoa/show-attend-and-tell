@@ -24,7 +24,7 @@ class CaptioningSolver(object):
             - print_every: Integer; training losses will be printed every print_every iterations.
             - pretrained_model: String; pretrained model path
             - model_path: String; model path for saving
-            - test_model: String; model path for test
+            - test_checkpoint: String; model path for test
         """
 
         self.model = model
@@ -39,7 +39,7 @@ class CaptioningSolver(object):
         self.log_path = kwargs.pop('log_path', './log/')
         self.checkpoint_dir = kwargs.pop('checkpoint_dir', './model/')
         self.pretrained_model = kwargs.pop('pretrained_model', '')
-        self.test_model = kwargs.pop('test_model', './model/lstm/model-1')
+        self.test_checkpoint = kwargs.pop('test_checkpoint', './model/lstm/model-1')
         # set an optimizer by update rule
         if self.update_rule == 'adam':
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
@@ -203,7 +203,7 @@ class CaptioningSolver(object):
             config.gpu_options.allow_growth = True
             with tf.Session(config=config) as sess:
                 saver = tf.train.Saver()
-                saver.restore(sess, self.test_model)
+                saver.restore(sess, self.test_checkpoint)
 
             if attention_visualization:
                 mask, image_files = sample_coco_minibatch(data, 10)

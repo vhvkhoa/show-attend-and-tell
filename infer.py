@@ -20,7 +20,7 @@ flags.DEFINE_boolean('ctx2out', True, 'Link context features to output.')
 flags.DEFINE_boolean('enable_selector', True, 'Enable selector to determine how much important the image context is at every time step.')
 
 """Other parameters"""
-flags.DEFINE_string('pretrained_model', '', 'Path to a pretrained model to initiate weights from.') 
+flags.DEFINE_string('test_checkpoint', '', 'Path to a checkpoint used to infer.') 
 flags.DEFINE_string('word_to_idx_dict', 'word_to_idx.pkl', 'Path to pickle file contained dictionary of words and their corresponding indices.')
 flags.DEFINE_string('split', 'val', 'Split contained extracted features of images you want to caption.\n' + 
                                     'Split should be inside ./data/ repository, if not, an error would be raised.\n' +
@@ -39,7 +39,7 @@ def main():
                                     ctx2out=FLAGS.ctx2out, alpha_c=1.0, enable_selector=FLAGS.enable_selector, dropout=FLAGS.dropout)
 
     solver = CaptioningSolver(model, batch_size=FLAGS.batch_size, 
-                                    pretrained_model=FLAGS.pretrained_model)
+                                    test_checkpoint=FLAGS.test_checkpoint)
 
     solver.test(data, beam_size=3, attention_visualization=True)
 
