@@ -42,7 +42,7 @@ def main():
     solver = CaptioningSolver(model, batch_size=FLAGS.batch_size, 
                                     test_checkpoint=FLAGS.test_checkpoint)
 
-    solver.test(data, beam_size=3, attention_visualization=True)
+    solver.test(data, beam_size=3, attention_visualization=FLAGS.att_vis)
 
 if __name__ == "__main__":
     main()
