@@ -437,7 +437,7 @@ class BeamSearchHelper(object):
         # Note that the last dimension (initialized to zero) is not a loop invariant,
         # so we need to clear it. TODO(nikita): is there a public API for clearing shape
         # inference so that _shape is not necessary?
-        cand_symbols.set_shape(tf.TensorShape((self.inferred_batch_size, None)))
+        cand_symbols._shape = tf.TensorShape((self.inferred_batch_size, None))
         cand_logprobs._shape = tf.TensorShape((self.inferred_batch_size,))
         cand_finished._shape = tf.TensorShape((self.inferred_batch_size,))
         beam_symbols._shape = tf.TensorShape((self.inferred_batch_size_times_beam_size, None))
