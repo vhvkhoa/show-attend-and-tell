@@ -16,7 +16,7 @@ import tensorflow as tf
 from tf_beam_decoder import beam_decoder
 class CaptionGenerator(object):
     def __init__(self, word_to_idx, dim_feature=[196, 512], dim_embed=512, dim_hidden=1024, n_time_step=16,
-                  prev2out=True, ctx2out=True, alpha_c=0.0, enable_selector=True, dropout=True):
+                  prev2out=True, ctx2out=True, alpha_c=0.0, enable_selector=True, dropout=0.5):
         self.word_to_idx = word_to_idx
         self.idx_to_word = {i: w for w, i in word_to_idx.iteritems()}
         self.prev2out = prev2out
@@ -89,15 +89,14 @@ class CaptionGenerator(object):
             context = tf.multiply(beta, context, name='selected_context')
             return context, beta
 
-    def _decode_lstm(self, x, h, context, dropout=False, reuse=False):
+    def _decode_lstm(self, x, h, context, dropout=0.0, reuse=False):
         with tf.variable_scope('logits', reuse=reuse):
             w_h = tf.get_variable('w_h', [self.H, self.M], initializer=self.weight_initializer)
             b_h = tf.get_variable('b_h', [self.M], initializer=self.const_initializer)
             w_out = tf.get_variable('w_out', [self.M, self.V], initializer=self.weight_initializer)
             b_out = tf.get_variable('b_out', [self.V], initializer=self.const_initializer)
 
-            if dropout:
-                h = tf.nn.dropout(h, 0.5)
+            h = tf.nn.dropout(h, keep_prob=1.0-dropout)
             h_logits = tf.matmul(h, w_h) + b_h
 
             if self.ctx2out:

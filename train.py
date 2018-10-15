@@ -42,13 +42,13 @@ def main():
                                     dim_hidden=FLAGS.lstm_hidden_size, n_time_step=FLAGS.time_steps, prev2out=FLAGS.prev2out,
                                     ctx2out=FLAGS.ctx2out, alpha_c=1.0, enable_selector=FLAGS.enable_selector, dropout=FLAGS.dropout)
 
-    solver = CaptioningSolver(model, data, val_data, n_epochs=FLAGS.num_epochs, batch_size=FLAGS.batch_size, update_rule=FLAGS.optimizer,
+    solver = CaptioningSolver(model, n_epochs=FLAGS.num_epochs, batch_size=FLAGS.batch_size, update_rule=FLAGS.optimizer,
                                     learning_rate=FLAGS.learning_rate, metric=FLAGS.metric,
                                     print_every=FLAGS.snapshot_steps, eval_every=FLAGS.eval_steps,
                                     pretrained_model=FLAGS.pretrained_model, start_from=FLAGS.start_from, checkpoint_dir=FLAGS.checkpoint_dir, 
                                     log_path=FLAGS.log_path)
 
-    solver.train(beam_size=FLAGS.beam_size)
+    solver.train(data, val_data, beam_size=FLAGS.beam_size)
 
 if __name__ == "__main__":
     main()

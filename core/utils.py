@@ -16,6 +16,7 @@ def load_coco_data(data_path='./data', split='train'):
     start_t = time.time()
     data = {}
 
+    data['split'] = 'split'
     data['features_path'] = os.path.join(data_path, 'feats')
     data['n_examples'] = len(os.listdir(data['features_path']))
 
