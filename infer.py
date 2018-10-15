@@ -26,6 +26,7 @@ flags.DEFINE_string('split', 'val', 'Split contained extracted features of image
                                     'Split should be inside ./data/ repository, if not, an error would be raised.\n' +
                                     'Features can be extracted by running prepro.py file.\n'+
                                     'Run python prepro.py to see instructions.')
+flags.DEFINE_integer('batch_size', 128, 'Number of examples per mini-batch.')
 
 def main():
     # load dataset and vocab
