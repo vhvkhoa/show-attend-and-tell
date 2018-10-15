@@ -3,7 +3,7 @@ from tensorflow import flags
 from core.solver import CaptioningSolver
 from core.model import CaptionGenerator
 from core.utils import load_coco_data
-
+from core.utils import evaluate
 
 FLAGS = flags.FLAGS
 
@@ -43,6 +43,8 @@ def main():
                                     test_checkpoint=FLAGS.test_checkpoint)
 
     solver.test(data, beam_size=3, attention_visualization=FLAGS.att_vis)
+
+    evaluate()
 
 if __name__ == "__main__":
     main()
