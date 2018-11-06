@@ -1,9 +1,9 @@
 import sys
 import torch
 import tensorflow as tf
-sys.path.append('../models/research/slim')
-from nets import nets_factory
-from preprocessing import preprocessing_factory
+#sys.path.append('../models/research/slim')
+#from nets import nets_factory
+#from preprocessing import preprocessing_factory
 from PIL import Image
 from torchvision import models
 from torchvision import transforms
@@ -62,7 +62,7 @@ class FeatureExtractor(object):
         features = self.model(images)
         
         return features.permute(0, 2, 3, 1)
-
+'''
 class TensorFlowCocoDataset(object):
     def __init__(self, phases, batch_size):
         image_preprocessing_fn = preprocessing_factory.get_preprocessing('inception', is_training=False)
@@ -109,3 +109,4 @@ class TensorFlowFeatureExtracter(object):
         _, end_points = self.network_fn(dataset_batch)
         features = end_points[self.layer_name]
         return features
+'''
