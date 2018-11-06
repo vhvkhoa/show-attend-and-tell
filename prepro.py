@@ -179,15 +179,16 @@ def main():
                                                 max_length=max_length)
         save_pickle(datasets[phase], 'data/%s/%s.annotations.pkl' % (phase, phase))
 
+        if phase == 'train':
+            annotations = load_pickle('./data/train/train.annotations.pkl')
+
+            word_to_idx = _build_vocab(annotations=annotations, threshold=word_count_threshold, vocab_size=vocab_size)
+            save_pickle(word_to_idx, './data/train/word_to_idx.pkl')
+            
+            captions = _build_caption_vector(annotations=annotations, word_to_idx=word_to_idx, max_length=max_length)
+            save_pickle(captions, './data/train/train.captions.pkl')
+
     print 'Finished processing caption data'
-
-    annotations = load_pickle('./data/train/train.annotations.pkl')
-
-    word_to_idx = _build_vocab(annotations=annotations, threshold=word_count_threshold, vocab_size=vocab_size)
-    save_pickle(word_to_idx, './data/train/word_to_idx.pkl')
-    
-    captions = _build_caption_vector(annotations=annotations, word_to_idx=word_to_idx, max_length=max_length)
-    save_pickle(captions, './data/train/train.captions.pkl')
 
     if FLAGS.use_tf:
         tf_datasets = TensorFlowCocoDataset(phases, batch_size)
