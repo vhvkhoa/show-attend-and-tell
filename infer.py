@@ -44,7 +44,7 @@ def main():
 
     solver.test(data, beam_size=3, attention_visualization=FLAGS.att_vis)
 
-    evaluate()
+    #evaluate()
 
 if __name__ == "__main__":
     main()
